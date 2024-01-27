@@ -1,39 +1,42 @@
-import { confirm } from "@tauri-apps/api/dialog";
 import { UnlistenFn, listen } from "@tauri-apps/api/event";
-import { appWindow } from "@tauri-apps/api/window";
 import { GripIcon } from "lucide-react";
 import { useEffect, useState } from "react";
+
+type SetTaskEventPayload = {
+    task: string;
+};
 
 type StartTimerEventPayload = {
     duration: number;
 };
-const unlisten = await appWindow.onCloseRequested(async (event) => {
-    const confirmed = await confirm("Are you sure?");
-    if (!confirmed) {
-        // user did not confirm closing the window; let's prevent it
-        event.preventDefault();
-    }
-});
 
 const Popup = () => {
     let [timer, setTimer] = useState(0);
+    let [activeTask, setActiveTask] = useState('');
 
     useEffect(() => {
-        console.debug("Starting listening");
+        let unlisten: Promise<UnlistenFn> | null = null;
+        unlisten = listen<SetTaskEventPayload>("set-active-task", (event) => {
+            setActiveTask(event.payload.task);
+        });
+
+        return () => {
+            unlisten?.then((f) => f());
+        };
+    }, []);
+
+    useEffect(() => {
         let unlisten: Promise<UnlistenFn> | null = null;
         let timerId: ReturnType<typeof setInterval> | null = null;
         unlisten = listen<StartTimerEventPayload>("start-timer", (event) => {
-            console.debug("Timer-Start called");
             if (timerId) clearInterval(timerId);
             setTimer(event.payload.duration);
             timerId = setInterval(() => {
-                console.debug("Interval called");
                 setTimer((currentTimer) => currentTimer - 1);
             }, 5000);
         });
 
         return () => {
-            console.debug("Listening Cleanup");
             unlisten?.then((f) => f());
             if (timerId) clearTimeout(timerId);
         };
@@ -54,7 +57,7 @@ const Popup = () => {
             <div className="flex items-end h-full w-full gap-4">
                 <h1 className="text-7xl font-bold leading-none">{timer}</h1>
                 <div className="flex gap-2 w-full flex-1 flex-col pb-3">
-                    <p>Figma MVP Design</p>
+                    <p>{activeTask}</p>
                     <div className="rounded-lg bg-muted w-full relative h-3">
                         <div className="rounded-lg bg-red-400 w-1/3 absolute left-[2px] top-[2px] h-2 drop-shadow" />
                     </div>
