@@ -108,16 +108,26 @@ struct StateSynchEvent {
     value: StatePayload,
 }
 
+#[derive(Deserialize, Serialize, Clone, Debug)]
+enum StateKey {
+    #[serde(rename = "tasks")]
+    Tasks,
+    #[serde(rename = "activeTask")]
+    ActiveTask,
+    #[serde(rename = "workPeriod")]
+    WorkPeriod,
+}
+
 #[tauri::command]
 fn mutate_state(
-    key: String,
+    key: StateKey,
     value: StatePayload,
     state: State<'_, AppState>,
     handle: tauri::AppHandle,
 ) -> Result<(), ()> {
-    eprint!("Got Command! {value:?}");
-    match key.as_str() {
-        "tasks" => {
+    eprint!("Got Command! {key:?} {value:?}");
+    match key {
+        StateKey::Tasks => {
             if let StatePayload::Tasks(t) = value {
                 let mut tasks = state.task_list.lock().unwrap();
                 *tasks = t.into_iter().map(|ta| Arc::new(Mutex::new(ta))).collect();
