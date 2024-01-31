@@ -6,13 +6,14 @@ import {
   PlusIcon,
   ShieldCloseIcon,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import "./App.css";
 import { Button } from "./components/ui/button";
 import { Checkbox } from "./components/ui/checkbox";
 import { Input } from "./components/ui/input";
 import {
   subscribeAppState,
+  Task,
   useAppState,
   useSynchAppState,
 } from "./lib/app-state";
@@ -21,7 +22,12 @@ function App() {
   const tasks = useAppState((state) => state.tasks);
   const addTaskToState = useAppState((state) => state.addTask);
   useSynchAppState();
+  const removeTask = useAppState((state) => state.removeTask);
   const [taskInputText, setTaskInputText] = useState("");
+
+  const delTask = useCallback((task: Task) => {
+    removeTask(task);
+  }, []);
 
   const closePopup = async () => {
     await invoke("close_popup", {});
@@ -73,7 +79,16 @@ function App() {
           {tasks.map((task) => (
             <li className="flex gap-2 items-center" key={task.name}>
               <Checkbox id="terms2" checked={task.done} />
-              <span className="font-medium">{task.name}</span>
+              <div className="flex gap-2 justify-between">
+                <span className="font-medium">{task.name}</span>
+                <button
+                  onClick={() => {
+                    delTask(task);
+                  }}
+                >
+                  DEL
+                </button>
+              </div>
             </li>
           ))}
         </ul>

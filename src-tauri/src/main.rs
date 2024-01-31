@@ -39,15 +39,14 @@ struct PopupState {
 }
 
 struct AppState {
-    task_list: TaskList,
+    tasks: TaskList,
     active_task: Mutex<Option<TaskItem>>,
     current_period: Mutex<WorkPeriod>,
 }
 
 #[derive(Serialize)]
 struct AppStateFrontend {
-    #[serde(rename = "taskList")]
-    task_list: Vec<Task>,
+    tasks: Vec<Task>,
     #[serde(rename = "activeTask")]
     active_task: Option<Task>,
     #[serde(rename = "currentPeriod")]
@@ -56,7 +55,7 @@ struct AppStateFrontend {
 
 #[tauri::command]
 fn get_state(state: State<AppState>) -> AppStateFrontend {
-    let tasklist = state.task_list.lock().unwrap();
+    let tasklist = state.tasks.lock().unwrap();
     let tasks_fr: Vec<Task> = tasklist
         .iter()
         .map(|f| f.as_ref().lock().unwrap().clone())
@@ -69,7 +68,7 @@ fn get_state(state: State<AppState>) -> AppStateFrontend {
     };
 
     AppStateFrontend {
-        task_list: tasks_fr,
+        tasks: tasks_fr,
         active_task: active_task_fr,
         current_period: *state.current_period.lock().unwrap(),
     }
@@ -77,76 +76,83 @@ fn get_state(state: State<AppState>) -> AppStateFrontend {
 
 #[tauri::command]
 fn start_timer(handle: tauri::AppHandle, duration: i32, state: State<AppState>) {
-    let tasklist = state.task_list.lock().unwrap();
+    let tasklist = state.tasks.lock().unwrap();
     let mut period = state.current_period.lock().unwrap();
     *period = WorkPeriod::Work;
-    handle.emit_all("start-timer", StartTimerEventPayload { duration: 25 });
+    handle
+        .emit_all("start-timer", StartTimerEventPayload { duration: 25 })
+        .unwrap();
 
     if let Some(tasklist_first_task) = tasklist.first() {
         let mut at = state.active_task.lock().unwrap();
         *at = Some(Arc::clone(tasklist_first_task));
-        handle.emit_all(
-            "set-active-task",
-            SetActiveTaskPayload {
-                task: tasklist_first_task.lock().unwrap().name.clone(),
-            },
-        );
+        handle
+            .emit_all(
+                "set-active-task",
+                SetActiveTaskPayload {
+                    task: tasklist_first_task.lock().unwrap().name.clone(),
+                },
+            )
+            .unwrap();
     }
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
-#[serde(untagged)]
-enum StatePayload {
+enum StateSynchEvent {
+    #[serde(rename = "tasks")]
     Tasks(Vec<Task>),
+    #[serde(rename = "task")]
     Task(Task),
+    #[serde(rename = "workPeriod")]
     WorkPeriod(WorkPeriod),
 }
 
-#[derive(Deserialize, Serialize, Clone)]
-struct StateSynchEvent {
-    key: String,
-    value: StatePayload,
-}
-
 #[derive(Deserialize, Serialize, Clone, Debug)]
-enum StateKey {
-    #[serde(rename = "tasks")]
-    Tasks,
-    #[serde(rename = "activeTask")]
-    ActiveTask,
-    #[serde(rename = "workPeriod")]
-    WorkPeriod,
+enum StateMutateEvent {
+    AddTask(Task),
+    RemoveTask(String),
+    SwapTasks(usize, usize),
 }
 
 #[tauri::command]
 fn mutate_state(
-    key: StateKey,
-    value: StatePayload,
+    value: StateMutateEvent,
     state: State<'_, AppState>,
     handle: tauri::AppHandle,
 ) -> Result<(), ()> {
-    eprint!("Got Command! {key:?} {value:?}");
-    match key {
-        StateKey::Tasks => {
-            if let StatePayload::Tasks(t) = value {
-                let mut tasks = state.task_list.lock().unwrap();
-                *tasks = t.into_iter().map(|ta| Arc::new(Mutex::new(ta))).collect();
+    eprint!("Got Command! {value:?}");
+    match value {
+        StateMutateEvent::AddTask(new_task) => {
+            let mut tasks = state.tasks.lock().unwrap();
+            tasks.push(Arc::new(Mutex::new(new_task)));
 
-                let cloned = tasks
-                    .iter()
-                    .map(|f| f.as_ref().lock().unwrap().clone())
-                    .collect();
-
-                handle.emit_all(
-                    "synch_state",
-                    StateSynchEvent {
-                        key: String::from("tasks"),
-                        value: StatePayload::Tasks(cloned),
-                    },
-                );
-            }
+            let cloned = tasks.iter().map(|f| f.lock().unwrap().clone()).collect();
+            handle
+                .emit_all("synch_state", StateSynchEvent::Tasks(cloned))
+                .unwrap();
         }
-        _ => {}
+        StateMutateEvent::SwapTasks(i, y) => {
+            let mut tasks = state.tasks.lock().unwrap();
+            tasks.swap(i, y);
+
+            let cloned = tasks.iter().map(|f| f.lock().unwrap().clone()).collect();
+            handle
+                .emit_all("synch_state", StateSynchEvent::Tasks(cloned))
+                .unwrap();
+        }
+        StateMutateEvent::RemoveTask(task_name) => {
+            let mut tasks = state.tasks.lock().unwrap();
+            *tasks = tasks
+                .iter()
+                .filter(|task| task.lock().unwrap().name != task_name)
+                .cloned()
+                .collect();
+
+            let cloned = tasks.iter().map(|f| f.lock().unwrap().clone()).collect();
+            handle
+                .emit_all("synch_state", StateSynchEvent::Tasks(cloned))
+                .unwrap();
+        }
     }
 
     Ok(())
@@ -188,7 +194,7 @@ async fn open_popup(handle: tauri::AppHandle, state: State<'_, PopupState>) -> R
 
 #[tauri::command]
 fn add_task(name: &str, state: State<AppState>) -> Vec<Task> {
-    let mut tasklist = state.task_list.lock().unwrap();
+    let mut tasklist = state.tasks.lock().unwrap();
     tasklist.push(Arc::new(Mutex::new(Task {
         pomodoros: 0,
         name: String::from_str(name).unwrap(),
@@ -202,15 +208,9 @@ fn add_task(name: &str, state: State<AppState>) -> Vec<Task> {
     cloned
 }
 
-// Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
 fn main() {
     let app_state = AppState {
-        task_list: Mutex::new(Vec::new()),
+        tasks: Mutex::new(Vec::new()),
         active_task: Mutex::new(None),
         current_period: Mutex::new(WorkPeriod::Work),
     };
@@ -221,7 +221,6 @@ fn main() {
         .manage(app_state)
         .manage(popup_state)
         .invoke_handler(tauri::generate_handler![
-            greet,
             open_popup,
             start_timer,
             add_task,
