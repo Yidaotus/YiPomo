@@ -9,7 +9,6 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import "./App.css";
 import { Button } from "./components/ui/button";
-import { Checkbox } from "./components/ui/checkbox";
 import { Input } from "./components/ui/input";
 import {
   subscribeAppState,
@@ -17,16 +16,19 @@ import {
   useAppState,
   useSynchAppState,
 } from "./lib/app-state";
+import TaskView from "./components/Task";
 
 function App() {
   const tasks = useAppState((state) => state.tasks);
-  const addTaskToState = useAppState((state) => state.addTask);
+
+  const stateAddTask = useAppState((state) => state.addTask);
+  const stateMoveTask = useAppState((state) => state.moveTask);
   useSynchAppState();
   const removeTask = useAppState((state) => state.removeTask);
   const [taskInputText, setTaskInputText] = useState("");
 
-  const delTask = useCallback((task: Task) => {
-    removeTask(task);
+  const delTask = useCallback((taskId: string) => {
+    removeTask(taskId);
   }, []);
 
   const closePopup = async () => {
@@ -48,9 +50,13 @@ function App() {
     };
   }, []);
 
+  const commitTaskMove = async (ids: [string, string]) => {
+    stateMoveTask(ids);
+  };
+
   const addTask = async () => {
     const name = taskInputText;
-    addTaskToState({ pomodoros: 0, name, done: false });
+    stateAddTask({ pomodoros: 0, name, done: false });
     setTaskInputText("");
   };
 
@@ -75,21 +81,15 @@ function App() {
       </div>
       <div className="px-8 py-8 flex flex-col gap-4 max-h-[60vh] overflow-y-scroll">
         <h2 className="text-2xl font-bold">Tasks</h2>
-        <ul className="flex flex-col gap-3">
-          {tasks.map((task) => (
-            <li className="flex gap-2 items-center" key={task.name}>
-              <Checkbox id="terms2" checked={task.done} />
-              <div className="flex gap-2 justify-between">
-                <span className="font-medium">{task.name}</span>
-                <button
-                  onClick={() => {
-                    delTask(task);
-                  }}
-                >
-                  DEL
-                </button>
-              </div>
-            </li>
+        <ul className="flex flex-col gap-3 w-full">
+          {tasks.map((task, i) => (
+            <TaskView
+              key={task.id}
+              task={task}
+              deleteTask={delTask}
+              index={i}
+              moveTask={commitTaskMove}
+            />
           ))}
         </ul>
       </div>

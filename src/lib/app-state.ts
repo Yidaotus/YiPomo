@@ -4,21 +4,29 @@ import { useEffect, useState } from "react";
 import { create } from "zustand";
 
 export type Task = {
+  id: string;
   pomodoros: number;
   name: string;
   done: boolean;
 };
 
+type AddTaskPayload = Omit<Task, "id">;
 type AppState = {
   tasks: Array<Task>;
   activeTask: Task | null;
-  addTask: (task: Task) => void;
-  removeTask: (task: Task) => void;
+  addTask: (taskPayload: AddTaskPayload) => void;
+  removeTask: (taskId: string) => void;
+  moveTask: (ids: [string, string]) => void;
+};
+
+type MoveTaskMutation = {
+  name: "SwapTasks";
+  value: [string, string];
 };
 
 type AddTaskMutation = {
   name: "AddTask";
-  value: Task;
+  value: AddTaskPayload;
 };
 
 type RemoveTaskMutation = {
@@ -26,7 +34,7 @@ type RemoveTaskMutation = {
   value: string;
 };
 
-type MutationEvent = AddTaskMutation | RemoveTaskMutation;
+type MutationEvent = AddTaskMutation | RemoveTaskMutation | MoveTaskMutation;
 
 const StateEvent = {
   mutate: "mutate_state",
@@ -50,11 +58,14 @@ const emit = (mutation: MutationEvent) => {
 const useAppState = create<AppState>(() => ({
   tasks: [],
   activeTask: null,
-  addTask: (task: Task) => {
-    emit({ name: "AddTask", value: task });
+  moveTask: (ids: [string, string]) => {
+    emit({ name: "SwapTasks", value: ids });
   },
-  removeTask: (task: Task) => {
-    emit({ name: "RemoveTask", value: task.name });
+  addTask: (taskPayload: AddTaskPayload) => {
+    emit({ name: "AddTask", value: taskPayload });
+  },
+  removeTask: (taskId: string) => {
+    emit({ name: "RemoveTask", value: taskId });
   },
 }));
 

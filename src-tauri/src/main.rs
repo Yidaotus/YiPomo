@@ -1,5 +1,6 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+use nanoid::nanoid;
 use serde::{Deserialize, Serialize};
 use std::{
     str::FromStr,
@@ -26,6 +27,7 @@ enum WorkPeriod {
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 struct Task {
+    id: String,
     pomodoros: u32,
     name: String,
     done: bool,
@@ -108,10 +110,29 @@ enum StateSynchEvent {
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
+struct AddTaskPayload {
+    pomodoros: u32,
+    name: String,
+    done: bool,
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug)]
 enum StateMutateEvent {
-    AddTask(Task),
+    AddTask(AddTaskPayload),
     RemoveTask(String),
-    SwapTasks(usize, usize),
+    SwapTasks((String, String)),
+}
+
+impl Into<Task> for AddTaskPayload {
+    fn into(self) -> Task {
+        let nid = nanoid!();
+        Task {
+            id: nid,
+            name: self.name,
+            done: self.done,
+            pomodoros: self.pomodoros,
+        }
+    }
 }
 
 #[tauri::command]
@@ -124,27 +145,35 @@ fn mutate_state(
     match value {
         StateMutateEvent::AddTask(new_task) => {
             let mut tasks = state.tasks.lock().unwrap();
-            tasks.push(Arc::new(Mutex::new(new_task)));
+            tasks.push(Arc::new(Mutex::new(new_task.into())));
 
             let cloned = tasks.iter().map(|f| f.lock().unwrap().clone()).collect();
             handle
                 .emit_all("synch_state", StateSynchEvent::Tasks(cloned))
                 .unwrap();
         }
-        StateMutateEvent::SwapTasks(i, y) => {
+        StateMutateEvent::SwapTasks((i, y)) => {
             let mut tasks = state.tasks.lock().unwrap();
-            tasks.swap(i, y);
+            let id1 = tasks
+                .iter()
+                .position(|t| t.lock().unwrap().id == i)
+                .unwrap();
+            let id2 = tasks
+                .iter()
+                .position(|t| t.lock().unwrap().id == y)
+                .unwrap();
+            tasks.swap(id1, id2);
 
             let cloned = tasks.iter().map(|f| f.lock().unwrap().clone()).collect();
             handle
                 .emit_all("synch_state", StateSynchEvent::Tasks(cloned))
                 .unwrap();
         }
-        StateMutateEvent::RemoveTask(task_name) => {
+        StateMutateEvent::RemoveTask(task_id) => {
             let mut tasks = state.tasks.lock().unwrap();
             *tasks = tasks
                 .iter()
-                .filter(|task| task.lock().unwrap().name != task_name)
+                .filter(|task| task.lock().unwrap().id != task_id)
                 .cloned()
                 .collect();
 
@@ -192,22 +221,6 @@ async fn open_popup(handle: tauri::AppHandle, state: State<'_, PopupState>) -> R
     Ok(())
 }
 
-#[tauri::command]
-fn add_task(name: &str, state: State<AppState>) -> Vec<Task> {
-    let mut tasklist = state.tasks.lock().unwrap();
-    tasklist.push(Arc::new(Mutex::new(Task {
-        pomodoros: 0,
-        name: String::from_str(name).unwrap(),
-        done: false,
-    })));
-
-    let cloned = tasklist
-        .iter()
-        .map(|f| f.as_ref().lock().unwrap().clone())
-        .collect();
-    cloned
-}
-
 fn main() {
     let app_state = AppState {
         tasks: Mutex::new(Vec::new()),
@@ -223,7 +236,6 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             open_popup,
             start_timer,
-            add_task,
             get_state,
             mutate_state,
             close_popup
