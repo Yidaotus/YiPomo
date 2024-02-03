@@ -9,17 +9,13 @@ type StartTimerEventPayload = {
 
 const TaskView = () => {
   const tasks = useAppState((state) => state.tasks);
-  const removeTask = useAppState((state) => state.removeTask);
-  const activeTask = tasks[tasks.length - 1];
-
-  const delTask = useCallback(() => {
-    removeTask(activeTask);
-  }, [activeTask]);
+  const activeTask = tasks[0];
 
   return (
-    <div className="flex gap-2 justify-between">
-      <span>{activeTask?.name || "No active Task!"}</span>
-      <button onClick={delTask}>DEL</button>
+    <div className="flex gap-2 justify-between overflow-hidden w-full flex-nowrap">
+      <span className="overflow-hidden text-ellipsis whitespace-nowrap max-w-[170px] text-sm">
+        {activeTask?.name || "No active Task!"}
+      </span>
     </div>
   );
 };

@@ -2,10 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use nanoid::nanoid;
 use serde::{Deserialize, Serialize};
-use std::{
-    str::FromStr,
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
 use tauri::{Manager, State};
 
 #[derive(Clone, Serialize)]
@@ -117,10 +114,18 @@ struct AddTaskPayload {
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
+struct TaskCheckStatePayload {
+    #[serde(rename = "taskId")]
+    task_id: String,
+    checked: bool,
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug)]
 enum StateMutateEvent {
     AddTask(AddTaskPayload),
     RemoveTask(String),
     SwapTasks((String, String)),
+    CheckTask(TaskCheckStatePayload),
 }
 
 impl Into<Task> for AddTaskPayload {
@@ -146,11 +151,6 @@ fn mutate_state(
         StateMutateEvent::AddTask(new_task) => {
             let mut tasks = state.tasks.lock().unwrap();
             tasks.push(Arc::new(Mutex::new(new_task.into())));
-
-            let cloned = tasks.iter().map(|f| f.lock().unwrap().clone()).collect();
-            handle
-                .emit_all("synch_state", StateSynchEvent::Tasks(cloned))
-                .unwrap();
         }
         StateMutateEvent::SwapTasks((i, y)) => {
             let mut tasks = state.tasks.lock().unwrap();
@@ -163,11 +163,6 @@ fn mutate_state(
                 .position(|t| t.lock().unwrap().id == y)
                 .unwrap();
             tasks.swap(id1, id2);
-
-            let cloned = tasks.iter().map(|f| f.lock().unwrap().clone()).collect();
-            handle
-                .emit_all("synch_state", StateSynchEvent::Tasks(cloned))
-                .unwrap();
         }
         StateMutateEvent::RemoveTask(task_id) => {
             let mut tasks = state.tasks.lock().unwrap();
@@ -176,13 +171,21 @@ fn mutate_state(
                 .filter(|task| task.lock().unwrap().id != task_id)
                 .cloned()
                 .collect();
-
-            let cloned = tasks.iter().map(|f| f.lock().unwrap().clone()).collect();
-            handle
-                .emit_all("synch_state", StateSynchEvent::Tasks(cloned))
+        }
+        StateMutateEvent::CheckTask(TaskCheckStatePayload { task_id, checked }) => {
+            let tasks = state.tasks.lock().unwrap();
+            let target_task = tasks
+                .iter()
+                .find(|t| t.lock().unwrap().id == task_id)
                 .unwrap();
+            target_task.lock().unwrap().done = checked;
         }
     }
+    let tasks = state.tasks.lock().unwrap();
+    let cloned = tasks.iter().map(|f| f.lock().unwrap().clone()).collect();
+    handle
+        .emit_all("synch_state", StateSynchEvent::Tasks(cloned))
+        .unwrap();
 
     Ok(())
 }

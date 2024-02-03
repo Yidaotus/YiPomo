@@ -17,6 +17,13 @@ type AppState = {
   addTask: (taskPayload: AddTaskPayload) => void;
   removeTask: (taskId: string) => void;
   moveTask: (ids: [string, string]) => void;
+  checkTask: ({
+    taskId,
+    checked,
+  }: {
+    taskId: string;
+    checked: boolean;
+  }) => void;
 };
 
 type MoveTaskMutation = {
@@ -34,7 +41,16 @@ type RemoveTaskMutation = {
   value: string;
 };
 
-type MutationEvent = AddTaskMutation | RemoveTaskMutation | MoveTaskMutation;
+type CheckTaskMutation = {
+  name: "CheckTask";
+  value: { taskId: string; checked: boolean };
+};
+
+type MutationEvent =
+  | AddTaskMutation
+  | RemoveTaskMutation
+  | MoveTaskMutation
+  | CheckTaskMutation;
 
 const StateEvent = {
   mutate: "mutate_state",
@@ -58,14 +74,17 @@ const emit = (mutation: MutationEvent) => {
 const useAppState = create<AppState>(() => ({
   tasks: [],
   activeTask: null,
-  moveTask: (ids: [string, string]) => {
+  moveTask: (ids) => {
     emit({ name: "SwapTasks", value: ids });
   },
-  addTask: (taskPayload: AddTaskPayload) => {
+  addTask: (taskPayload) => {
     emit({ name: "AddTask", value: taskPayload });
   },
-  removeTask: (taskId: string) => {
+  removeTask: (taskId) => {
     emit({ name: "RemoveTask", value: taskId });
+  },
+  checkTask: (checkedState) => {
+    emit({ name: "CheckTask", value: checkedState });
   },
 }));
 
@@ -100,7 +119,7 @@ const subscribeAppState = async () => {
     },
   );
 
-  return async () => {
+  return () => {
     unsubscribeAppState();
   };
 };

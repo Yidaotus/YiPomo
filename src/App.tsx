@@ -1,22 +1,21 @@
 import { invoke } from "@tauri-apps/api/tauri";
 import {
-  BotIcon,
-  MenuIcon,
-  PlayIcon,
-  PlusIcon,
-  ShieldCloseIcon,
+    BotIcon,
+    MenuIcon,
+    PlayIcon,
+    PlusIcon,
+    ShieldCloseIcon,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import "./App.css";
+import TaskView from "./components/Task";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import {
-  subscribeAppState,
-  Task,
-  useAppState,
-  useSynchAppState,
+    subscribeAppState,
+    useAppState,
+    useSynchAppState
 } from "./lib/app-state";
-import TaskView from "./components/Task";
 
 function App() {
   const tasks = useAppState((state) => state.tasks);
@@ -25,6 +24,7 @@ function App() {
   const stateMoveTask = useAppState((state) => state.moveTask);
   useSynchAppState();
   const removeTask = useAppState((state) => state.removeTask);
+  const checkTask = useAppState((state) => state.checkTask);
   const [taskInputText, setTaskInputText] = useState("");
 
   const delTask = useCallback((taskId: string) => {
@@ -85,6 +85,7 @@ function App() {
           {tasks.map((task, i) => (
             <TaskView
               key={task.id}
+              checkTask={checkTask}
               task={task}
               deleteTask={delTask}
               index={i}
