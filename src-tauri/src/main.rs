@@ -270,7 +270,7 @@ fn mutate_state(
                 .collect();
         }
         StateMutateEvent::CheckTask(TaskCheckStatePayload { task_id, checked }) => {
-            let target_id;
+            let target_task_id;
             let mut tasks = state.tasks.lock().unwrap();
             {
                 let mut target_task = tasks
@@ -280,12 +280,18 @@ fn mutate_state(
                     .lock()
                     .unwrap();
                 target_task.done = checked;
-                target_task.completed = 0;
-                target_id = target_task.id.clone();
+                if checked {
+                    target_task.completed = target_task.length;
+                } else {
+                    target_task.completed = 0;
+                }
+                target_task_id = target_task.id.clone();
             }
 
-            if checked == false {
-                let task_index = tasks.iter().position(|t| t.lock().unwrap().id == target_id);
+            if !checked {
+                let task_index = tasks
+                    .iter()
+                    .position(|t| t.lock().unwrap().id == target_task_id);
                 if let Some(index) = task_index {
                     let len = tasks.len() - 1;
                     tasks.swap(index, len);

@@ -9,9 +9,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { invoke } from "@tauri-apps/api/tauri";
-import { PlusCircle } from "lucide-react";
+import { FootprintsIcon, PlusCircle } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import "./App.css";
 import TaskView from "./components/Task";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
@@ -41,13 +40,7 @@ const PlayIcon = () => (
 );
 
 const TimeLine = () => (
-  <svg
-    width="205"
-    height="20"
-    viewBox="0 0 205 20"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <svg viewBox="0 0 205 20" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path
       d="M0 15C0 14.4477 0.447715 14 1 14C1.55228 14 2 14.4477 2 15V19C2 19.5523 1.55228 20 1 20C0.447715 20 0 19.5523 0 19V15Z"
       fill="#D9D9D9"
@@ -261,8 +254,8 @@ function App() {
       .filter((t) => !t.done)
       .reduce((v, t) => (v += t.length), 0);
 
-    const longBreaks = Math.floor((numberOfPomodorosLeft - 1) / 4);
-    const shortBreaks = numberOfPomodorosLeft - 1 - longBreaks;
+    const longBreaks = Math.max(0, Math.floor((numberOfPomodorosLeft - 1) / 4));
+    const shortBreaks = Math.max(0, numberOfPomodorosLeft - 1 - longBreaks);
 
     const longBreakDuration = longBreaks * LONG_BREAK_DURATION;
     const shortBreakDuration = shortBreaks * SMALL_BREAK_DURATION;
@@ -289,42 +282,35 @@ function App() {
   }, [calculateTimes]);
 
   return (
-    <div className="h-screen flex flex-col px-4 pb-4">
+    <div className="h-screen flex flex-col px-4 pb-4 bg-background">
       <div className="w-full flex flex-col gap-4 justify-center items-center py-6">
-        <div className="bg-muted w-[250px] h-[75px] rounded-lg shadow-[inset_0_4px_4px_rgba(0,0,0,0.2)] flex items-center overflow-hidden relative">
-          <div className="relative flex justify-start text-5xl text-muted-foreground items-center h-full gap-[4px] -translate-x-[85px]">
-            <div className="w-[205px] flex justify-center items-start flex-col h-full">
-              <div className="flex-1 flex items-center justify-center w-full">
-                25
+        <div className="bg-muted w-[225px] h-[75px] rounded-lg shadow-[inset_0_4px_4px_rgba(0,0,0,0.2)] flex items-center overflow-hidden relative">
+          <div className="flex justify-start text-5xl text-muted-foreground items-center w-full gap-0 h-full">
+            <div className="w-full flex justify-center items-start flex-col h-full relative flex-shrink-0">
+              <div className="flex items-center justify-center w-full relative -top-2">
+                20
               </div>
-              <div className="mt-auto">
+              <div className="w-full h-auto absolute bottom-0 left-0">
                 <TimeLine />
               </div>
             </div>
-            <div className="w-[205px] flex justify-center items-start flex-col h-full ml-[-102px]">
-              <div className="flex-1 flex items-center justify-center w-full">
-                <PlayIcon />
+            <div className="w-full flex justify-center items-start flex-col h-full relative flex-shrink-0">
+              <div className="flex items-center justify-center w-full relative -top-2">
+                20
               </div>
-              <div className="mt-auto">
-                <TimeLine />
-              </div>
-            </div>
-            <div className="w-[205px] flex justify-center items-start flex-col h-full ml-[-102px]">
-              <div className="flex-1 flex items-center justify-center w-full">
-                05
-              </div>
-              <div className="mt-auto">
+              <div className="w-full h-auto absolute bottom-0 left-0">
                 <TimeLine />
               </div>
             </div>
           </div>
         </div>
         <div className="h-12 w-[300px] relative">
-          <div className="relative w-full h-full">
-            <div className="h-12 w-full absolute bottom-[-6px] left-0 bg-[#D9D9D9] rounded-xl" />
+          <div className="relative w-full h-full group">
+            <div className="h-12 w-full absolute bottom-[-6px] left-0 bg-[#D9D9D9] group-hover:bg-[#E9E9E9] rounded-xl" />
             <button
-              className="h-full bg-muted w-full rounded-xl flex items-center justify-center text-foreground text-lg font-medium relative shadow-[#D9D9D9] shadow"
+              className="h-full bg-muted group-hover:bg-gray-100 disabled:text-muted-foreground disabled:cursor-not-allowed w-full rounded-xl flex items-center justify-center text-foreground text-lg font-medium relative shadow-[#D9D9D9] shadow"
               onClick={advanceState}
+              disabled={tasks.length < 1}
             >
               Start Session
             </button>
@@ -334,7 +320,7 @@ function App() {
       <div className="flex flex-col gap-4 pb-4 flex-1 h-full overflow-auto">
         <h2 className="text-2xl font-bold">Tasks</h2>
         <hr />
-        <ul className="flex flex-col gap-3 w-full overflow-auto">
+        <ul className="flex flex-col gap-3 w-full overflow-auto pb-2">
           {tasks
             .filter((t) => !t.done)
             .map((task, i) => (

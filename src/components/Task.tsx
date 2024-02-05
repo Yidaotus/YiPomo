@@ -131,13 +131,17 @@ const TaskView = ({
       </button>
       <div className="flex gap-2 justify-between w-full items-center">
         <div className="font-medium">{task.name}</div>
-        <div className="text-sm">2/2</div>
+        <div className="text-sm relative">
+          <span className="relative left-[-1px] top-[-5px] inline-block">{task.length}</span>
+          <span className="relative inline-block rotate-12">/</span>
+          <span className="relative left-[1px] top-[5px] inline-block">{task.completed}</span>
+        </div>
       </div>
     </div>
   ) : (
     <div
       className={`flex gap-4 items-center w-full relative border px-4 py-2 border-muted rounded-xl shadow ${
-        activeTaskId === task.id && "bg-green-200"
+        activeTaskId === task.id && "bg-secondary"
       }`}
       ref={previewRef}
       style={{ opacity }}
