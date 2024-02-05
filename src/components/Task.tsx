@@ -3,7 +3,7 @@ import type { Identifier, XYCoord } from "dnd-core";
 import { useRef } from "react";
 import { useDrag, useDrop } from "react-dnd";
 import { Checkbox } from "./ui/checkbox";
-import { GripIcon, TrashIcon } from "lucide-react";
+import { CheckCircle, GripIcon, TrashIcon } from "lucide-react";
 
 export const ItemTypes = {
   TASK: "task",
@@ -12,6 +12,7 @@ export const ItemTypes = {
 type TaskProps = {
   task: Task;
   index: number;
+  activeTaskId: string | null;
   checkTask: ({
     taskId,
     checked,
@@ -32,6 +33,7 @@ type DragItem = {
 
 const TaskView = ({
   task,
+  activeTaskId,
   deleteTask,
   moveTask,
   checkTask,
@@ -117,9 +119,26 @@ const TaskView = ({
   drag(dragRef);
   drop(preview(previewRef));
 
-  return (
+  return task.done ? (
+    <div className="flex gap-4 items-center w-full relative border px-4 py-2 border-muted rounded-xl shadow bg-muted text-muted-foreground">
+      <button
+        className="cursor-pointer group"
+        onClick={() => {
+          checkTask({ taskId: task.id, checked: false });
+        }}
+      >
+        <CheckCircle className="w-4 h-4" />
+      </button>
+      <div className="flex gap-2 justify-between w-full items-center">
+        <div className="font-medium">{task.name}</div>
+        <div className="text-sm">2/2</div>
+      </div>
+    </div>
+  ) : (
     <div
-      className="flex gap-4 items-center w-full relative border px-4 py-2 border-muted rounded-xl shadow"
+      className={`flex gap-4 items-center w-full relative border px-4 py-2 border-muted rounded-xl shadow ${
+        activeTaskId === task.id && "bg-green-200"
+      }`}
       ref={previewRef}
       style={{ opacity }}
       data-handler-id={handlerId}
@@ -141,7 +160,9 @@ const TaskView = ({
           >
             {task.name}
           </div>
-          <div className="text-sm text-muted-foreground">Duration: 0/2</div>
+          <div className="text-sm text-muted-foreground">
+            {`Duration: ${task.completed}/${task.length}`}
+          </div>
         </div>
       </div>
       <div className="ml-auto flex gap-2">

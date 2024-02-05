@@ -5,15 +5,18 @@ import { create } from "zustand";
 
 export type Task = {
   id: string;
-  pomodoros: number;
+  length: number;
+  completed: number;
   name: string;
   done: boolean;
 };
 
-type AddTaskPayload = Omit<Task, "id">;
+type SessionState = "Idle" | "Working" | "SmallBreak" | "BigBreak" | "Finish";
+type AddTaskPayload = Omit<Task, "id" | "completed">;
 type AppState = {
   tasks: Array<Task>;
-  activeTask: Task | null;
+  activeTask: string | null;
+  sessionState: SessionState;
   addTask: (taskPayload: AddTaskPayload) => void;
   removeTask: (taskId: string) => void;
   moveTask: (ids: [string, string]) => void;
@@ -53,6 +56,7 @@ type MutationEvent =
   | CheckTaskMutation;
 
 const StateEvent = {
+  advanceState: "advance_state",
   mutate: "mutate_state",
   synch: "synch_state",
   getState: "get_state",
@@ -64,27 +68,32 @@ type SynchEventPayload = {
   };
 };
 
-const emit = (mutation: MutationEvent) => {
+const emitMutation = (mutation: MutationEvent) => {
   console.debug({ mutation });
   invoke(StateEvent.mutate, {
     value: { [mutation.name]: mutation.value },
   });
 };
 
+
 const useAppState = create<AppState>(() => ({
   tasks: [],
   activeTask: null,
+  sessionState: "Idle",
   moveTask: (ids) => {
-    emit({ name: "SwapTasks", value: ids });
+    emitMutation({ name: "SwapTasks", value: ids });
   },
   addTask: (taskPayload) => {
-    emit({ name: "AddTask", value: taskPayload });
+    emitMutation({ name: "AddTask", value: taskPayload });
   },
   removeTask: (taskId) => {
-    emit({ name: "RemoveTask", value: taskId });
+    emitMutation({ name: "RemoveTask", value: taskId });
   },
   checkTask: (checkedState) => {
-    emit({ name: "CheckTask", value: checkedState });
+    emitMutation({ name: "CheckTask", value: checkedState });
+  },
+  advance: () => {
+    invoke(StateEvent.advanceState);
   },
 }));
 

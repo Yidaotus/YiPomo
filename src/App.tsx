@@ -9,12 +9,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { invoke } from "@tauri-apps/api/tauri";
-import { BotIcon, PlusCircle, PlusIcon, ShieldCloseIcon } from "lucide-react";
+import { PlusCircle } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import "./App.css";
 import TaskView from "./components/Task";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
+import { addMinutes } from "date-fns";
 import {
   subscribeAppState,
   useAppState,
@@ -192,13 +193,25 @@ const TimeLine = () => (
 
 function App() {
   const tasks = useAppState((state) => state.tasks);
+  const [finishTimeValues, setFinishTimeValues] = useState({
+    sessionHours: 0,
+    sessionMinutes: 0,
+    finish: new Date(),
+  });
 
   const stateAddTask = useAppState((state) => state.addTask);
   const stateMoveTask = useAppState((state) => state.moveTask);
+  const activeTask = useAppState((state) => state.activeTask);
   useSynchAppState();
   const removeTask = useAppState((state) => state.removeTask);
   const checkTask = useAppState((state) => state.checkTask);
-  const [taskInputText, setTaskInputText] = useState("");
+  const [taskNameInput, setTaskNameInput] = useState("");
+  const [taskDurationInput, setTaskDurationInput] = useState(1);
+  const sessionState = useAppState((state) => state.sessionState);
+
+  const advanceState = useCallback(() => {
+    invoke("advance_state");
+  }, []);
 
   const delTask = useCallback((taskId: string) => {
     removeTask(taskId);
@@ -228,10 +241,52 @@ function App() {
   };
 
   const addTask = async () => {
-    const name = taskInputText;
-    stateAddTask({ pomodoros: 0, name, done: false });
-    setTaskInputText("");
+    stateAddTask({
+      length: taskDurationInput,
+      name: taskNameInput,
+      done: false,
+    });
+    setTaskNameInput("");
+    setTaskDurationInput(1);
   };
+
+  const SMALL_BREAK_DURATION = 5;
+  const LONG_BREAK_DURATION = 15;
+  const WORK_DURATION = 25;
+
+  console.debug({ tasks });
+
+  const calculateTimes = useCallback(() => {
+    const numberOfPomodorosLeft = tasks
+      .filter((t) => !t.done)
+      .reduce((v, t) => (v += t.length), 0);
+
+    const longBreaks = Math.floor((numberOfPomodorosLeft - 1) / 4);
+    const shortBreaks = numberOfPomodorosLeft - 1 - longBreaks;
+
+    const longBreakDuration = longBreaks * LONG_BREAK_DURATION;
+    const shortBreakDuration = shortBreaks * SMALL_BREAK_DURATION;
+    const workDuration = numberOfPomodorosLeft * WORK_DURATION;
+
+    const sessionDuration =
+      workDuration + shortBreakDuration + longBreakDuration;
+    setFinishTimeValues({
+      sessionHours: Math.floor(sessionDuration / 60),
+      sessionMinutes: Math.floor(sessionDuration % 60),
+      finish: addMinutes(new Date(), sessionDuration),
+    });
+  }, [tasks]);
+
+  useEffect(() => {
+    calculateTimes();
+    const timerId = setInterval(() => {
+      calculateTimes();
+    }, 60 * 1000);
+
+    return () => {
+      clearInterval(timerId);
+    };
+  }, [calculateTimes]);
 
   return (
     <div className="h-screen flex flex-col px-4 pb-4">
@@ -267,7 +322,10 @@ function App() {
         <div className="h-12 w-[300px] relative">
           <div className="relative w-full h-full">
             <div className="h-12 w-full absolute bottom-[-6px] left-0 bg-[#D9D9D9] rounded-xl" />
-            <button className="h-full bg-muted w-full rounded-xl flex items-center justify-center text-foreground text-lg font-medium relative shadow-[#D9D9D9] shadow">
+            <button
+              className="h-full bg-muted w-full rounded-xl flex items-center justify-center text-foreground text-lg font-medium relative shadow-[#D9D9D9] shadow"
+              onClick={advanceState}
+            >
               Start Session
             </button>
           </div>
@@ -277,49 +335,92 @@ function App() {
         <h2 className="text-2xl font-bold">Tasks</h2>
         <hr />
         <ul className="flex flex-col gap-3 w-full overflow-auto">
-          {tasks.map((task, i) => (
-            <TaskView
-              key={task.id}
-              checkTask={checkTask}
-              task={task}
-              deleteTask={delTask}
-              index={i}
-              moveTask={commitTaskMove}
-            />
-          ))}
+          {tasks
+            .filter((t) => !t.done)
+            .map((task, i) => (
+              <TaskView
+                activeTaskId={activeTask}
+                key={task.id}
+                checkTask={checkTask}
+                task={task}
+                deleteTask={delTask}
+                index={i}
+                moveTask={commitTaskMove}
+              />
+            ))}
+          {tasks
+            .filter((t) => t.done)
+            .sort((t1, t2) => t1.name.localeCompare(t2.name))
+            .map((task, i) => (
+              <TaskView
+                activeTaskId={activeTask}
+                key={task.id}
+                checkTask={checkTask}
+                task={task}
+                deleteTask={delTask}
+                index={i}
+                moveTask={commitTaskMove}
+              />
+            ))}
         </ul>
+        <Dialog>
+          <DialogTrigger className="border-dashed border-muted border-2 rounded-xl flex items-center justify-center text-muted-foreground py-2 gap-2 font-medium">
+            <PlusCircle className="w-5 h-5" />
+            Add Task
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader className="text-left">
+              <DialogTitle>New Task</DialogTitle>
+              <DialogDescription>Add a new Task</DialogDescription>
+            </DialogHeader>
+            <div className="flex gap-2">
+              <Input
+                value={taskNameInput}
+                onChange={(e) => setTaskNameInput(e.target.value)}
+                placeholder="Task Name"
+                className="flex-1 w-full"
+              />
+              <Input
+                type="number"
+                placeholder="Duration"
+                min={1}
+                className="w-24"
+                value={taskDurationInput.toString()}
+                onChange={(e) =>
+                  setTaskDurationInput(Number.parseInt(e.target.value))
+                }
+              />
+            </div>
+            <DialogFooter className="sm:justify-start">
+              <DialogClose asChild>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => addTask()}
+                >
+                  Add Task
+                </Button>
+              </DialogClose>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
-      <Dialog>
-        <DialogTrigger className="border-dashed border-muted border-2 rounded-xl flex items-center justify-center text-muted-foreground py-2 gap-2 font-medium mt-auto">
-          <PlusCircle className="w-5 h-5" />
-          Add Task
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader className="text-left">
-            <DialogTitle>New Task</DialogTitle>
-            <DialogDescription>Add a new Task</DialogDescription>
-          </DialogHeader>
-          <div className="flex gap-2">
-            <Input
-              onChange={(e) => setTaskInputText(e.target.value)}
-              placeholder="Task Name"
-              className="flex-1 w-full"
-            />
-            <Input placeholder="Duration" className="w-24" />
-          </div>
-          <DialogFooter className="sm:justify-start">
-            <DialogClose asChild>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => addTask()}
-              >
-                Add Task
-              </Button>
-            </DialogClose>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <p>{sessionState}</p>
+      <div className="w-full flex items-center justify-center flex-col pt-2">
+        <div className="text-lg font-medium">Finish at</div>
+        <div className="text-4xl font-medium">
+          {`${finishTimeValues.finish
+            .getHours()
+            .toString()
+            .padStart(2, "0")}:${finishTimeValues.finish
+            .getMinutes()
+            .toString()
+            .padStart(2, "0")}`}
+        </div>
+        <div className="text-xs text-muted-foreground">
+          {`${finishTimeValues.sessionHours} Hour ${finishTimeValues.sessionMinutes} Minutes`}
+        </div>
+      </div>
     </div>
   );
 }
