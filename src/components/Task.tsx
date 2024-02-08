@@ -132,9 +132,13 @@ const TaskView = ({
       <div className="flex gap-2 justify-between w-full items-center">
         <div className="font-medium">{task.name}</div>
         <div className="text-sm relative">
-          <span className="relative left-[-1px] top-[-5px] inline-block">{task.length}</span>
+          <span className="relative left-[-1px] top-[-5px] inline-block">
+            {task.length}
+          </span>
           <span className="relative inline-block rotate-12">/</span>
-          <span className="relative left-[1px] top-[5px] inline-block">{task.completed}</span>
+          <span className="relative left-[1px] top-[5px] inline-block">
+            {task.completed}
+          </span>
         </div>
       </div>
     </div>
@@ -157,14 +161,10 @@ const TaskView = ({
       />
       <div className="flex gap-2 justify-between">
         <div className="flex flex-col">
-          <div
-            className={`font-medium ${
-              task.done && "line-through text-muted"
-            } text-secondary-foreground`}
-          >
+          <div className="font-medium text-secondary-foreground text-sm">
             {task.name}
           </div>
-          <div className="text-sm text-muted-foreground">
+          <div className="text-xs text-muted-foreground">
             {`Duration: ${task.completed}/${task.length}`}
           </div>
         </div>

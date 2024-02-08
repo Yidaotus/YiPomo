@@ -69,7 +69,6 @@ type SynchEventPayload = {
 };
 
 const emitMutation = (mutation: MutationEvent) => {
-  console.debug({ mutation });
   invoke(StateEvent.mutate, {
     value: { [mutation.name]: mutation.value },
   });
@@ -103,7 +102,6 @@ const useSynchAppState = () => {
   useEffect(() => {
     const synchInitialState = async () => {
       const currentState = await invoke<AppState>(StateEvent.getState);
-      console.debug({ currentState });
       useAppState.setState(currentState);
       setIsSynching(false);
     };
@@ -119,7 +117,6 @@ const subscribeAppState = async () => {
   const unsubscribeAppState = await listen<SynchEventPayload>(
     StateEvent.synch,
     (event) => {
-      console.debug({ event });
       for (const [key, value] of Object.entries(event.payload)) {
         useAppState.setState({
           [key]: value,

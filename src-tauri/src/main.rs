@@ -15,13 +15,6 @@ struct SetActiveTaskPayload {
     task: String,
 }
 
-#[derive(Copy, Clone, Serialize, Deserialize, Debug)]
-enum WorkPeriod {
-    Work,
-    SmallBreak,
-    BigBreak,
-}
-
 #[derive(Clone, Serialize, Deserialize, Debug)]
 struct Task {
     id: String,

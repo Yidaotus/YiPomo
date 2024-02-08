@@ -39,7 +39,7 @@
         "setMinSize": false,
         "setMinimizable": false,
         "setPosition": false,
-        "setResizable": false,
+        "setResizable": true,
         "setSize": false,
         "setSkipTaskbar": false,
         "setTitle": true,
@@ -72,7 +72,7 @@
       {
         "fileDropEnabled": false,
         "fullscreen": false,
-        "resizable": false,
+        "resizable": true,
         "title": "yi-pomo",
         "width": 380,
         "height": 750
