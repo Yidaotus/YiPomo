@@ -56,14 +56,14 @@ struct AppState {
 
 impl AppState {
     fn peek_advance(
-        tasks_left: u32,
+        pomodoros_left: u32,
         active_session_type: SessionType,
         pause_iterations: u32,
     ) -> SessionType {
         let new_active_state;
         match active_session_type {
             SessionType::Working => {
-                if tasks_left > 1 {
+                if pomodoros_left > 0 {
                     if pause_iterations % 4 != 0 {
                         new_active_state = SessionType::SmallBreak;
                     } else {
@@ -74,7 +74,7 @@ impl AppState {
                 }
             }
             SessionType::Idle => {
-                if tasks_left > 0 {
+                if pomodoros_left > 0 {
                     new_active_state = SessionType::Working;
                 } else {
                     new_active_state = SessionType::Idle;
@@ -97,17 +97,7 @@ impl AppState {
         let mut session_state = self.session_state.lock().unwrap();
         let mut pause_iterations = self.pause_iterations.lock().unwrap();
 
-        let previous_state = session_state.active;
-        let mut new_active_state = session_state.active;
         let mut unfinished_tasks = tasks.iter().filter(|t| t.lock().unwrap().done == false);
-        let mut pomodoros_left = unfinished_tasks
-            .clone()
-            .map(|t| {
-                let unf_t = t.lock().unwrap();
-                unf_t.length - unf_t.completed
-            })
-            .sum();
-
         match session_state.active {
             SessionType::Working => {
                 if let Some(t) = active_task.as_ref() {
@@ -117,41 +107,58 @@ impl AppState {
                     if task.completed >= task.length {
                         task.done = true;
                     }
-                    pomodoros_left -= 1;
                 }
 
                 if let Some(next_task) = unfinished_tasks.next() {
                     *active_task = Some(next_task.clone());
-                    if *pause_iterations % 4 != 0 {
-                        new_active_state = SessionType::SmallBreak;
-                    } else {
-                        new_active_state = SessionType::BigBreak;
-                    }
                 } else {
                     *active_task = None;
-                    new_active_state = SessionType::Finish;
                 }
             }
             SessionType::Idle => {
                 *pause_iterations = 1;
                 if let Some(next_task) = unfinished_tasks.next() {
                     *active_task = Some(next_task.clone());
-                    new_active_state = SessionType::Working;
                 }
             }
-            SessionType::Finish => {
-                new_active_state = SessionType::Idle;
-            }
+            SessionType::Finish => {}
             _ => {
                 *pause_iterations += 1;
-                new_active_state = SessionType::Working;
             }
         }
 
+        let pomodoros_left = tasks
+            .iter()
+            .filter(|t| t.lock().unwrap().done == false)
+            .map(|t| {
+                let unf_t = t.lock().unwrap();
+                unf_t.length - unf_t.completed
+            })
+            .sum();
+
+        eprint!("Pomos Left: {}", pomodoros_left);
+
+        let previous_state = session_state.active;
+        let next_state =
+            Self::peek_advance(pomodoros_left, session_state.active, *pause_iterations);
+
+        let mut upcomming_pomodoros_left = pomodoros_left;
+        if next_state == SessionType::Working {
+            upcomming_pomodoros_left -= 1;
+        }
+        let mut upcomming_pause_iterations = *pause_iterations;
+        if next_state == SessionType::SmallBreak || next_state == SessionType::BigBreak {
+            upcomming_pause_iterations += 1;
+        }
+        let upcomming_state = Self::peek_advance(
+            upcomming_pomodoros_left,
+            next_state,
+            upcomming_pause_iterations,
+        );
         *session_state = SessionState {
             previous: previous_state,
-            active: new_active_state,
-            upcomming: Self::peek_advance(pomodoros_left, new_active_state, *pause_iterations),
+            active: next_state,
+            upcomming: upcomming_state,
         };
     }
 }

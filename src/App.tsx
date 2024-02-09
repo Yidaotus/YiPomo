@@ -232,7 +232,7 @@ function App() {
               .padStart(2, "0")}`}
           </div>
           <div className="text-xs text-muted-foreground">
-            {`${finishTimeValues.sessionHours} Hour ${finishTimeValues.sessionMinutes} Minutes`}
+            {`${finishTimeValues.sessionHours} Hours ${finishTimeValues.sessionMinutes} Minutes`}
           </div>
         </div>
       )}

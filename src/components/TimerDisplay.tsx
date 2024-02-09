@@ -1,4 +1,5 @@
 import { useAppState } from "@/lib/app-state";
+import { SunIcon } from "lucide-react";
 import { useEffect, useRef } from "react";
 
 const PlayIcon = () => (
@@ -27,42 +28,84 @@ const CenterIndicator = () => (
 );
 
 const TimeLine = () => (
-  <svg viewBox="0 0 210 21" fill="current" xmlns="http://www.w3.org/2000/svg">
-    <path d="M43.4483 15.75C43.4483 15.1701 44.0967 14.7 44.8965 14.7C45.6964 14.7 46.3448 15.1701 46.3448 15.75V19.95C46.3448 20.5299 45.6964 21 44.8965 21C44.0967 21 43.4483 20.5299 43.4483 19.95V15.75Z" />
-    <path d="M52.1379 15.75C52.1379 15.1701 52.7863 14.7 53.5862 14.7C54.3861 14.7 55.0345 15.1701 55.0345 15.75V19.95C55.0345 20.5299 54.3861 21 53.5862 21C52.7863 21 52.1379 20.5299 52.1379 19.95V15.75Z" />
-    <path d="M60.8276 7.35C60.8276 6.7701 61.476 6.3 62.2759 6.3C63.0757 6.3 63.7241 6.7701 63.7241 7.35V19.95C63.7241 20.5299 63.0757 21 62.2759 21C61.476 21 60.8276 20.5299 60.8276 19.95V7.35Z" />
-    <path d="M69.5172 15.75C69.5172 15.1701 70.1657 14.7 70.9655 14.7C71.7654 14.7 72.4138 15.1701 72.4138 15.75V19.95C72.4138 20.5299 71.7654 21 70.9655 21C70.1657 21 69.5172 20.5299 69.5172 19.95V15.75Z" />
-    <path d="M78.2069 15.75C78.2069 15.1701 78.8553 14.7 79.6552 14.7C80.455 14.7 81.1034 15.1701 81.1034 15.75V19.95C81.1034 20.5299 80.455 21 79.6552 21C78.8553 21 78.2069 20.5299 78.2069 19.95V15.75Z" />
-    <path d="M86.8965 15.75C86.8965 15.1701 87.545 14.7 88.3448 14.7C89.1447 14.7 89.7931 15.1701 89.7931 15.75V19.95C89.7931 20.5299 89.1447 21 88.3448 21C87.545 21 86.8965 20.5299 86.8965 19.95V15.75Z" />
-    <path d="M95.5862 15.75C95.5862 15.1701 96.2346 14.7 97.0345 14.7C97.8343 14.7 98.4828 15.1701 98.4828 15.75V19.95C98.4828 20.5299 97.8343 21 97.0345 21C96.2346 21 95.5862 20.5299 95.5862 19.95V15.75Z" />
-    <path d="M104.276 1.05C104.276 0.470101 104.924 0 105.724 0C106.524 0 107.172 0.470101 107.172 1.05V19.95C107.172 20.5299 106.524 21 105.724 21C104.924 21 104.276 20.5299 104.276 19.95V1.05Z" />
-    <path d="M111.517 15.75C111.517 15.1701 112.166 14.7 112.966 14.7C113.765 14.7 114.414 15.1701 114.414 15.75V19.95C114.414 20.5299 113.765 21 112.966 21C112.166 21 111.517 20.5299 111.517 19.95V15.75Z" />
-    <path d="M120.207 15.75C120.207 15.1701 120.855 14.7 121.655 14.7C122.455 14.7 123.103 15.1701 123.103 15.75V19.95C123.103 20.5299 122.455 21 121.655 21C120.855 21 120.207 20.5299 120.207 19.95V15.75Z" />
-    <path d="M128.897 15.75C128.897 15.1701 129.545 14.7 130.345 14.7C131.145 14.7 131.793 15.1701 131.793 15.75V19.95C131.793 20.5299 131.145 21 130.345 21C129.545 21 128.897 20.5299 128.897 19.95V15.75Z" />
-    <path d="M137.586 15.75C137.586 15.1701 138.235 14.7 139.034 14.7C139.834 14.7 140.483 15.1701 140.483 15.75V19.95C140.483 20.5299 139.834 21 139.034 21C138.235 21 137.586 20.5299 137.586 19.95V15.75Z" />
-    <path d="M146.276 7.35C146.276 6.7701 146.924 6.3 147.724 6.3C148.524 6.3 149.172 6.7701 149.172 7.35V19.95C149.172 20.5299 148.524 21 147.724 21C146.924 21 146.276 20.5299 146.276 19.95V13.65V7.35Z" />
-    <path d="M154.966 15.75C154.966 15.1701 155.614 14.7 156.414 14.7C157.214 14.7 157.862 15.1701 157.862 15.75V19.95C157.862 20.5299 157.214 21 156.414 21C155.614 21 154.966 20.5299 154.966 19.95V15.75Z" />
-    <path d="M163.655 15.75C163.655 15.1701 164.304 14.7 165.103 14.7C165.903 14.7 166.552 15.1701 166.552 15.75V19.95C166.552 20.5299 165.903 21 165.103 21C164.304 21 163.655 20.5299 163.655 19.95V15.75Z" />
-    <path d="M43.4483 15.75C43.4483 15.1701 44.0967 14.7 44.8965 14.7C45.6964 14.7 46.3448 15.1701 46.3448 15.75V19.95C46.3448 20.5299 45.6964 21 44.8965 21C44.0967 21 43.4483 20.5299 43.4483 19.95V15.75Z" />
-    <path d="M52.1379 15.75C52.1379 15.1701 52.7863 14.7 53.5862 14.7C54.3861 14.7 55.0345 15.1701 55.0345 15.75V19.95C55.0345 20.5299 54.3861 21 53.5862 21C52.7863 21 52.1379 20.5299 52.1379 19.95V15.75Z" />
-    <path d="M60.8276 7.35C60.8276 6.7701 61.476 6.3 62.2759 6.3C63.0757 6.3 63.7241 6.7701 63.7241 7.35V19.95C63.7241 20.5299 63.0757 21 62.2759 21C61.476 21 60.8276 20.5299 60.8276 19.95V7.35Z" />
-    <path d="M69.5172 15.75C69.5172 15.1701 70.1657 14.7 70.9655 14.7C71.7654 14.7 72.4138 15.1701 72.4138 15.75V19.95C72.4138 20.5299 71.7654 21 70.9655 21C70.1657 21 69.5172 20.5299 69.5172 19.95V15.75Z" />
-    <path d="M78.2069 15.75C78.2069 15.1701 78.8553 14.7 79.6552 14.7C80.455 14.7 81.1034 15.1701 81.1034 15.75V19.95C81.1034 20.5299 80.455 21 79.6552 21C78.8553 21 78.2069 20.5299 78.2069 19.95V15.75Z" />
-    <path d="M0 15.75C0 15.1701 0.648415 14.7 1.44828 14.7C2.24814 14.7 2.89655 15.1701 2.89655 15.75V19.95C2.89655 20.5299 2.24814 21 1.44828 21C0.648415 21 0 20.5299 0 19.95V15.75Z" />
-    <path d="M8.68966 15.75C8.68966 15.1701 9.33807 14.7 10.1379 14.7C10.9378 14.7 11.5862 15.1701 11.5862 15.75V19.95C11.5862 20.5299 10.9378 21 10.1379 21C9.33807 21 8.68966 20.5299 8.68966 19.95V15.75Z" />
-    <path d="M17.3793 7.35C17.3793 6.7701 18.0277 6.3 18.8276 6.3C19.6274 6.3 20.2759 6.7701 20.2759 7.35V19.95C20.2759 20.5299 19.6274 21 18.8276 21C18.0277 21 17.3793 20.5299 17.3793 19.95V7.35Z" />
-    <path d="M26.069 15.75C26.069 15.1701 26.7174 14.7 27.5172 14.7C28.3171 14.7 28.9655 15.1701 28.9655 15.75V19.95C28.9655 20.5299 28.3171 21 27.5172 21C26.7174 21 26.069 20.5299 26.069 19.95V15.75Z" />
-    <path d="M34.7586 15.75C34.7586 15.1701 35.407 14.7 36.2069 14.7C37.0068 14.7 37.6552 15.1701 37.6552 15.75V19.95C37.6552 20.5299 37.0068 21 36.2069 21C35.407 21 34.7586 20.5299 34.7586 19.95V15.75Z" />
-    <path d="M0 15.75C0 15.1701 0.648415 14.7 1.44828 14.7C2.24814 14.7 2.89655 15.1701 2.89655 15.75V19.95C2.89655 20.5299 2.24814 21 1.44828 21C0.648415 21 0 20.5299 0 19.95V15.75Z" />
-    <path d="M8.68966 15.75C8.68966 15.1701 9.33807 14.7 10.1379 14.7C10.9378 14.7 11.5862 15.1701 11.5862 15.75V19.95C11.5862 20.5299 10.9378 21 10.1379 21C9.33807 21 8.68966 20.5299 8.68966 19.95V15.75Z" />
-    <path d="M17.3793 7.35C17.3793 6.7701 18.0277 6.3 18.8276 6.3C19.6274 6.3 20.2759 6.7701 20.2759 7.35V19.95C20.2759 20.5299 19.6274 21 18.8276 21C18.0277 21 17.3793 20.5299 17.3793 19.95V7.35Z" />
-    <path d="M26.069 15.75C26.069 15.1701 26.7174 14.7 27.5172 14.7C28.3171 14.7 28.9655 15.1701 28.9655 15.75V19.95C28.9655 20.5299 28.3171 21 27.5172 21C26.7174 21 26.069 20.5299 26.069 19.95V15.75Z" />
-    <path d="M34.7586 15.75C34.7586 15.1701 35.407 14.7 36.2069 14.7C37.0068 14.7 37.6552 15.1701 37.6552 15.75V19.95C37.6552 20.5299 37.0068 21 36.2069 21C35.407 21 34.7586 20.5299 34.7586 19.95V15.75Z" />
-    <path d="M172.345 15.75C172.345 15.1701 172.993 14.7 173.793 14.7C174.593 14.7 175.241 15.1701 175.241 15.75V19.95C175.241 20.5299 174.593 21 173.793 21C172.993 21 172.345 20.5299 172.345 19.95V15.75Z" />
-    <path d="M181.034 15.75C181.034 15.1701 181.683 14.7 182.483 14.7C183.283 14.7 183.931 15.1701 183.931 15.75V19.95C183.931 20.5299 183.283 21 182.483 21C181.683 21 181.034 20.5299 181.034 19.95V15.75Z" />
-    <path d="M189.724 7.35C189.724 6.7701 190.373 6.3 191.172 6.3C191.972 6.3 192.621 6.7701 192.621 7.35V19.95C192.621 20.5299 191.972 21 191.172 21C190.373 21 189.724 20.5299 189.724 19.95V13.65V7.35Z" />
-    <path d="M198.414 15.75C198.414 15.1701 199.062 14.7 199.862 14.7C200.662 14.7 201.31 15.1701 201.31 15.75V19.95C201.31 20.5299 200.662 21 199.862 21C199.062 21 198.414 20.5299 198.414 19.95V15.75Z" />
-    <path d="M207.103 15.75C207.103 15.1701 207.752 14.7 208.552 14.7C209.352 14.7 210 15.1701 210 15.75V19.95C210 20.5299 209.352 21 208.552 21C207.752 21 207.103 20.5299 207.103 19.95V15.75Z" />
+  <svg
+    viewBox="0 0 104 20"
+    fill="current"
+    stroke="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="M5.99995 15C5.99995 14.4477 6.44766 14 6.99995 14C7.55223 14 7.99995 14.4477 7.99995 15V19C7.99995 19.5523 7.55223 20 6.99995 20C6.44766 20 5.99995 19.5523 5.99995 19V15Z"
+      fill="current"
+    />
+    <path
+      d="M11.9999 15C11.9999 14.4477 12.4477 14 12.9999 14C13.5522 14 13.9999 14.4477 13.9999 15V19C13.9999 19.5523 13.5522 20 12.9999 20C12.4477 20 11.9999 19.5523 11.9999 19V15Z"
+      fill="current"
+    />
+    <path
+      d="M17.9999 15C17.9999 14.4477 18.4477 14 18.9999 14C19.5522 14 19.9999 14.4477 19.9999 15V19C19.9999 19.5523 19.5522 20 18.9999 20C18.4477 20 17.9999 19.5523 17.9999 19V15Z"
+      fill="current"
+    />
+    <path
+      d="M23.9999 15C23.9999 14.4477 24.4477 14 24.9999 14C25.5522 14 25.9999 14.4477 25.9999 15V19C25.9999 19.5523 25.5522 20 24.9999 20C24.4477 20 23.9999 19.5523 23.9999 19V15Z"
+      fill="current"
+    />
+    <path
+      d="M29.9999 15C29.9999 14.4477 30.4477 14 30.9999 14C31.5522 14 31.9999 14.4477 31.9999 15V19C31.9999 19.5523 31.5522 20 30.9999 20C30.4477 20 29.9999 19.5523 29.9999 19V15Z"
+      fill="current"
+    />
+    <path
+      d="M35.9999 7C35.9999 6.44772 36.4477 6 36.9999 6C37.5522 6 37.9999 6.44772 37.9999 7V19C37.9999 19.5523 37.5522 20 36.9999 20C36.4477 20 35.9999 19.5523 35.9999 19V7Z"
+      fill="current"
+    />
+    <path
+      d="M41.9999 15C41.9999 14.4477 42.4477 14 42.9999 14C43.5522 14 43.9999 14.4477 43.9999 15V19C43.9999 19.5523 43.5522 20 42.9999 20C42.4477 20 41.9999 19.5523 41.9999 19V15Z"
+      fill="current"
+    />
+    <path
+      d="M47.9999 15C47.9999 14.4477 48.4477 14 48.9999 14C49.5522 14 49.9999 14.4477 49.9999 15V19C49.9999 19.5523 49.5522 20 48.9999 20C48.4477 20 47.9999 19.5523 47.9999 19V15Z"
+      fill="current"
+    />
+    <path
+      d="M53.9999 15C53.9999 14.4477 54.4477 14 54.9999 14C55.5522 14 55.9999 14.4477 55.9999 15V19C55.9999 19.5523 55.5522 20 54.9999 20C54.4477 20 53.9999 19.5523 53.9999 19V15Z"
+      fill="current"
+    />
+    <path
+      d="M59.9999 15C59.9999 14.4477 60.4477 14 60.9999 14C61.5522 14 61.9999 14.4477 61.9999 15V19C61.9999 19.5523 61.5522 20 60.9999 20C60.4477 20 59.9999 19.5523 59.9999 19V15Z"
+      fill="current"
+    />
+    <path
+      d="M65.9999 15C65.9999 14.4477 66.4477 14 66.9999 14C67.5522 14 67.9999 14.4477 67.9999 15V19C67.9999 19.5523 67.5522 20 66.9999 20C66.4477 20 65.9999 19.5523 65.9999 19V15Z"
+      fill="current"
+    />
+    <path
+      d="M71.9999 7C71.9999 6.44772 72.4477 6 72.9999 6C73.5522 6 73.9999 6.44772 73.9999 7V19C73.9999 19.5523 73.5522 20 72.9999 20C72.4477 20 71.9999 19.5523 71.9999 19V7Z"
+      fill="current"
+    />
+    <path
+      d="M77.9999 15C77.9999 14.4477 78.4477 14 78.9999 14C79.5522 14 79.9999 14.4477 79.9999 15V19C79.9999 19.5523 79.5522 20 78.9999 20C78.4477 20 77.9999 19.5523 77.9999 19V15Z"
+      fill="current"
+    />
+    <path
+      d="M83.9999 15C83.9999 14.4477 84.4477 14 84.9999 14C85.5522 14 85.9999 14.4477 85.9999 15V19C85.9999 19.5523 85.5522 20 84.9999 20C84.4477 20 83.9999 19.5523 83.9999 19V15Z"
+      fill="current"
+    />
+    <path
+      d="M89.9999 15C89.9999 14.4477 90.4477 14 90.9999 14C91.5522 14 91.9999 14.4477 91.9999 15V19C91.9999 19.5523 91.5522 20 90.9999 20C90.4477 20 89.9999 19.5523 89.9999 19V15Z"
+      fill="current"
+    />
+    <path
+      d="M95.9999 15C95.9999 14.4477 96.4477 14 96.9999 14C97.5522 14 97.9999 14.4477 97.9999 15V19C97.9999 19.5523 97.5522 20 96.9999 20C96.4477 20 95.9999 19.5523 95.9999 19V15Z"
+      fill="current"
+    />
+    <path
+      d="M102 15C102 14.4477 102.448 14 103 14C103.552 14 104 14.4477 104 15V19C104 19.5523 103.552 20 103 20C102.448 20 102 19.5523 102 19V15Z"
+      fill="current"
+    />
+    <path
+      d="M0 1C0 0.447715 0.447715 0 1 0C1.55228 0 2 0.447715 2 1V19C2 19.5523 1.55228 20 1 20C0.447715 20 0 19.5523 0 19V1Z"
+      fill="current"
+    />
   </svg>
 );
 
@@ -100,9 +143,8 @@ const FootStepsIcon = () => (
 );
 
 const timerWindowWidth = 228;
-const timerSegmentWidth = 100;
-const margin = (timerWindowWidth - timerSegmentWidth) / 2;
-const gap = 2;
+const timerSegmentWidth = 144;
+const gap = 5;
 
 const WorkTimeLine = () => {
   const workTimes = [0, 1, 2, 3];
@@ -112,10 +154,8 @@ const WorkTimeLine = () => {
         className="flex justify-center items-start flex-col h-full relative flex-shrink-0"
         style={{ width: `${timerSegmentWidth}px` }}
       >
-        <div className="flex items-center justify-center w-full relative -top-2">
-          <div className="w-8 h-8">
-            <PlayIcon />
-          </div>
+        <div className="w-8 h-8 relative -translate-x-1/2">
+          <PlayIcon />
         </div>
         <div className="w-full h-auto absolute bottom-0 left-0 fill-muted-foreground stroke-muted-foreground">
           <TimeLine />
@@ -127,116 +167,76 @@ const WorkTimeLine = () => {
           className="flex justify-center items-start flex-col h-full relative flex-shrink-0"
           style={{ width: `${timerSegmentWidth}px` }}
         >
-          <div className="flex items-center justify-center w-full relative -top-2">
-            {5 + i * 5}
-          </div>
+          <div className="relative -translate-x-1/2">{5 + i * 5}</div>
           <div className="w-full h-auto absolute bottom-0 left-0 fill-muted-foreground stroke-muted-foreground">
             <TimeLine />
           </div>
         </div>
       ))}
+    </>
+  );
+};
+
+const BigBreakTimeLine = () => {
+  const breakTimes = [0, 1];
+  return (
+    <>
       <div
         className="flex justify-center items-start flex-col h-full relative flex-shrink-0"
         style={{ width: `${timerSegmentWidth}px` }}
       >
-        <div className="flex items-center justify-center w-full relative -top-2">
-          <div className="w-12 h-12">
-            <FootStepsIcon />
-          </div>
+        <div className="w-12 h-12 relative -translate-x-1/2">
+          <SunIcon />
         </div>
         <div className="w-full h-auto absolute bottom-0 left-0 fill-muted-foreground stroke-muted-foreground">
           <TimeLine />
         </div>
       </div>
-      <div
-        className="flex justify-center items-start flex-col h-full relative flex-shrink-0"
-        style={{ width: `${timerSegmentWidth}px` }}
-      >
-        <div className="flex items-center justify-center w-full relative -top-2">
-          <div className="w-8 h-8">
-            <PlayIcon />
+      {breakTimes.map((i) => (
+        <div
+          key={i}
+          className="flex justify-center items-start flex-col h-full relative flex-shrink-0"
+          style={{ width: `${timerSegmentWidth}px` }}
+        >
+          <div className="relative -translate-x-1/2">{5 + i * 5}</div>
+          <div className="w-full h-auto absolute bottom-0 left-0 fill-muted-foreground stroke-muted-foreground">
+            <TimeLine />
           </div>
         </div>
-        <div className="w-full h-auto absolute bottom-0 left-0 fill-muted-foreground stroke-muted-foreground">
-          <TimeLine />
-        </div>
-      </div>
+      ))}
     </>
   );
 };
 
 const SmallBreakTimeLine = () => {
   return (
-    <>
-      <div
-        className="flex justify-center items-start flex-col h-full relative flex-shrink-0"
-        style={{ width: `${timerSegmentWidth}px` }}
-      >
-        <div className="flex items-center justify-center w-full relative -top-2">
-          <div className="w-12 h-12">
-            <FootStepsIcon />
-          </div>
-        </div>
-        <div className="w-full h-auto absolute bottom-0 left-0 fill-muted-foreground stroke-muted-foreground">
-          <TimeLine />
-        </div>
+    <div
+      className="flex justify-center items-start flex-col h-full relative flex-shrink-0"
+      style={{ width: `${timerSegmentWidth}px` }}
+    >
+      <div className="w-12 h-12 relative -translate-x-1/2">
+        <FootStepsIcon />
       </div>
-      <div
-        className="flex justify-center items-start flex-col h-full relative flex-shrink-0"
-        style={{ width: `${timerSegmentWidth}px` }}
-      >
-        <div className="flex items-center justify-center w-full relative -top-2">
-          <div className="w-8 h-8">
-            <PlayIcon />
-          </div>
-        </div>
-        <div className="w-full h-auto absolute bottom-0 left-0 fill-muted-foreground stroke-muted-foreground">
-          <TimeLine />
-        </div>
+      <div className="w-full h-auto absolute bottom-0 left-0 fill-muted-foreground stroke-muted-foreground">
+        <TimeLine />
       </div>
-      <div
-        className="flex justify-center items-start flex-col h-full relative flex-shrink-0"
-        style={{ width: `${timerSegmentWidth}px` }}
-      >
-        <div className="flex items-center justify-center w-full relative -top-2">
-          5
-        </div>
-        <div className="w-full h-auto absolute bottom-0 left-0 fill-muted-foreground stroke-muted-foreground">
-          <TimeLine />
-        </div>
-      </div>
-    </>
+    </div>
   );
 };
 
 const IdleTimeLine = () => {
   return (
-    <>
-      <div
-        className="flex justify-center items-start flex-col h-full relative flex-shrink-0"
-        style={{ width: `${timerSegmentWidth}px` }}
-      >
-        <div className="flex items-center justify-center w-full relative -top-2">
-          <div className="w-8 h-8">
-            <PlayIcon />
-          </div>
-        </div>
-        <div className="w-full h-auto absolute bottom-0 left-0 fill-muted-foreground stroke-muted-foreground">
-          <TimeLine />
-        </div>
+    <div
+      className="flex justify-center items-start flex-col h-full relative flex-shrink-0"
+      style={{ width: `${timerSegmentWidth}px` }}
+    >
+      <div className="w-8 h-8 relative -translate-x-1/2">
+        <PlayIcon />
       </div>
-      <div
-        className="flex justify-center items-start flex-col h-full relative flex-shrink-0"
-        style={{ width: `${timerSegmentWidth}px` }}
-      >
-        <div className="flex items-center justify-center w-full relative -top-2">
-          5
-        </div>
-        <div className="w-full h-auto absolute bottom-0 left-0 fill-muted-foreground stroke-muted-foreground">
-          <TimeLine />
-        </div>
+      <div className="w-full h-auto absolute bottom-0 left-0 fill-muted-foreground stroke-muted-foreground">
+        <TimeLine />
       </div>
-    </>
+    </div>
   );
 };
 
@@ -318,20 +318,20 @@ const TimerDisplay = () => {
           ref={timerRef}
           className="flex justify-start text-5xl text-[#686e76] items-center w-full h-full relative font-medium fill-[#686e76] stroke-[#686e76]"
           style={{
-            left: `${margin - (timerSegmentWidth + 2)}px`,
+            left: `${timerWindowWidth / 2 - (timerSegmentWidth + gap * 2)}px`,
             gap: `${gap}px`,
           }}
         >
-          {(state.previous === undefined ||
-            state.previous === "Finish" ||
-            state.previous === "Idle") && (
+          {(state.previous === "Idle" || state.previous === "Finish") && (
+            <IdleTimeLine />
+          )}
+          {state.previous === "SmallBreak" && <SmallBreakTimeLine />}
+          {state.previous === "BigBreak" && (
             <div
               className="flex justify-center items-start flex-col h-full relative flex-shrink-0"
               style={{ width: `${timerSegmentWidth}px` }}
             >
-              <div className="flex items-center justify-center w-full relative -top-2">
-                0
-              </div>
+              <div className="relative -translate-x-1/2">10</div>
               <div className="w-full h-auto absolute bottom-0 left-0 fill-muted-foreground stroke-muted-foreground">
                 <TimeLine />
               </div>
@@ -342,33 +342,22 @@ const TimerDisplay = () => {
               className="flex justify-center items-start flex-col h-full relative flex-shrink-0"
               style={{ width: `${timerSegmentWidth}px` }}
             >
-              <div className="flex items-center justify-center w-full relative -top-2">
-                20
-              </div>
+              <div className="relative -translate-x-1/2">20</div>
               <div className="w-full h-auto absolute bottom-0 left-0 fill-muted-foreground stroke-muted-foreground">
                 <TimeLine />
               </div>
             </div>
           )}
-          {state.previous === "SmallBreak" && (
-            <div
-              className="flex justify-center items-start flex-col h-full relative flex-shrink-0"
-              style={{ width: `${timerSegmentWidth}px` }}
-            >
-              <div className="flex items-center justify-center w-full relative -top-2">
-                <div className="w-12 h-12">
-                  <FootStepsIcon />
-                </div>
-              </div>
-              <div className="w-full h-auto absolute bottom-0 left-0 fill-muted-foreground stroke-muted-foreground">
-                <TimeLine />
-              </div>
-            </div>
-          )}
+
           {state.active === "Idle" && <IdleTimeLine />}
           {state.active === "Working" && <WorkTimeLine />}
           {state.active === "SmallBreak" && <SmallBreakTimeLine />}
-          {state.active === "BigBreak" && <WorkTimeLine />}
+          {state.active === "BigBreak" && <BigBreakTimeLine />}
+
+          {state.upcomming === "Idle" && <IdleTimeLine />}
+          {state.upcomming === "Working" && <WorkTimeLine />}
+          {state.upcomming === "SmallBreak" && <SmallBreakTimeLine />}
+          {state.upcomming === "BigBreak" && <BigBreakTimeLine />}
         </div>
       </div>
     </div>
