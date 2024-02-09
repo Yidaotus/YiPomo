@@ -1,5 +1,5 @@
 import { useAppState } from "@/lib/app-state";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 const PlayIcon = () => (
   <svg viewBox="0 0 32 32" fill="current" xmlns="http://www.w3.org/2000/svg">
@@ -244,6 +244,8 @@ const TimerDisplay = () => {
   const timerRef = useRef<HTMLDivElement>(null);
   const state = useAppState((state) => state.sessionState);
 
+  console.debug({ state });
+
   useEffect(() => {
     let start: number | undefined = undefined;
     let counter = 0;
@@ -258,7 +260,7 @@ const TimerDisplay = () => {
       if (timerDiv) {
         const timeDiff = timeStamp - start;
         let moveTargetPixels;
-        switch (state) {
+        switch (state.active) {
           case "Finish":
           case "Idle":
             moveTargetPixels = 0;
@@ -283,7 +285,7 @@ const TimerDisplay = () => {
         const pixelsToMove = moved * moveTargetPixels;
 
         timerDiv.style.transform = `translateX(-${pixelsToMove}px)`;
-        if (moved < 1 && state !== "Idle" && state !== "Finish") {
+        if (moved < 1 && state.active !== "Idle" && state.active !== "Finish") {
           animationId = requestAnimationFrame(animationCallback);
         }
       }
@@ -291,14 +293,9 @@ const TimerDisplay = () => {
 
     animationId = requestAnimationFrame(animationCallback);
     return () => {
-      setPreviousState(state);
       cancelAnimationFrame(animationId);
     };
   }, [state]);
-
-  const [previousState, setPreviousState] = useState(state);
-
-  console.debug({ previousState });
 
   return (
     <div
@@ -325,9 +322,9 @@ const TimerDisplay = () => {
             gap: `${gap}px`,
           }}
         >
-          {(previousState === undefined ||
-            previousState === "Finish" ||
-            previousState === "Idle") && (
+          {(state.previous === undefined ||
+            state.previous === "Finish" ||
+            state.previous === "Idle") && (
             <div
               className="flex justify-center items-start flex-col h-full relative flex-shrink-0"
               style={{ width: `${timerSegmentWidth}px` }}
@@ -340,7 +337,7 @@ const TimerDisplay = () => {
               </div>
             </div>
           )}
-          {previousState === "Working" && (
+          {state.previous === "Working" && (
             <div
               className="flex justify-center items-start flex-col h-full relative flex-shrink-0"
               style={{ width: `${timerSegmentWidth}px` }}
@@ -353,7 +350,7 @@ const TimerDisplay = () => {
               </div>
             </div>
           )}
-          {previousState === "SmallBreak" && (
+          {state.previous === "SmallBreak" && (
             <div
               className="flex justify-center items-start flex-col h-full relative flex-shrink-0"
               style={{ width: `${timerSegmentWidth}px` }}
@@ -368,10 +365,10 @@ const TimerDisplay = () => {
               </div>
             </div>
           )}
-          {state === "Idle" && <IdleTimeLine />}
-          {state === "Working" && <WorkTimeLine />}
-          {state === "SmallBreak" && <SmallBreakTimeLine />}
-          {state === "BigBreak" && <WorkTimeLine />}
+          {state.active === "Idle" && <IdleTimeLine />}
+          {state.active === "Working" && <WorkTimeLine />}
+          {state.active === "SmallBreak" && <SmallBreakTimeLine />}
+          {state.active === "BigBreak" && <WorkTimeLine />}
         </div>
       </div>
     </div>

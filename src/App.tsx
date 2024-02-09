@@ -38,7 +38,6 @@ function App() {
   const checkTask = useAppState((state) => state.checkTask);
   const [taskNameInput, setTaskNameInput] = useState("");
   const [taskDurationInput, setTaskDurationInput] = useState(1);
-  const sessionState = useAppState((state) => state.sessionState);
 
   const advanceState = useCallback(() => {
     invoke("advance_state");
@@ -111,7 +110,7 @@ function App() {
     const secondsToWholeMinute = 60 - new Date().getSeconds();
     let timerId: ReturnType<typeof setInterval>;
 
-    setTimeout(() => {
+    const timeOutId = setTimeout(() => {
       calculateTimes();
       timerId = setInterval(() => {
         calculateTimes();
@@ -120,6 +119,7 @@ function App() {
 
     return () => {
       clearInterval(timerId);
+      clearTimeout(timeOutId);
     };
   }, [calculateTimes]);
 

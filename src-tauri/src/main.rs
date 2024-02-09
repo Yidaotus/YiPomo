@@ -28,12 +28,19 @@ type TaskItem = Arc<Mutex<Task>>;
 type TaskList = Mutex<Vec<TaskItem>>;
 
 #[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq)]
-enum SessionState {
+enum SessionType {
     Idle,
     Working,
     SmallBreak,
     BigBreak,
     Finish,
+}
+
+#[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq)]
+struct SessionState {
+    previous: SessionType,
+    active: SessionType,
+    upcomming: SessionType,
 }
 
 struct PopupState {
@@ -48,15 +55,61 @@ struct AppState {
 }
 
 impl AppState {
-    fn advance(&self) -> SessionState {
+    fn peek_advance(
+        tasks_left: u32,
+        active_session_type: SessionType,
+        pause_iterations: u32,
+    ) -> SessionType {
+        let new_active_state;
+        match active_session_type {
+            SessionType::Working => {
+                if tasks_left > 1 {
+                    if pause_iterations % 4 != 0 {
+                        new_active_state = SessionType::SmallBreak;
+                    } else {
+                        new_active_state = SessionType::BigBreak;
+                    }
+                } else {
+                    new_active_state = SessionType::Finish;
+                }
+            }
+            SessionType::Idle => {
+                if tasks_left > 0 {
+                    new_active_state = SessionType::Working;
+                } else {
+                    new_active_state = SessionType::Idle;
+                }
+            }
+            SessionType::Finish => {
+                new_active_state = SessionType::Idle;
+            }
+            _ => {
+                new_active_state = SessionType::Working;
+            }
+        }
+
+        new_active_state
+    }
+
+    fn advance(&self) {
         let tasks = self.tasks.lock().unwrap();
         let mut active_task = self.active_task.lock().unwrap();
         let mut session_state = self.session_state.lock().unwrap();
         let mut pause_iterations = self.pause_iterations.lock().unwrap();
 
-        let mut new_state = *session_state;
-        match *session_state {
-            SessionState::Working => {
+        let previous_state = session_state.active;
+        let mut new_active_state = session_state.active;
+        let mut unfinished_tasks = tasks.iter().filter(|t| t.lock().unwrap().done == false);
+        let mut pomodoros_left = unfinished_tasks
+            .clone()
+            .map(|t| {
+                let unf_t = t.lock().unwrap();
+                unf_t.length - unf_t.completed
+            })
+            .sum();
+
+        match session_state.active {
+            SessionType::Working => {
                 if let Some(t) = active_task.as_ref() {
                     let mut task = t.lock().unwrap();
 
@@ -64,40 +117,42 @@ impl AppState {
                     if task.completed >= task.length {
                         task.done = true;
                     }
+                    pomodoros_left -= 1;
                 }
 
-                let mut tasks_left = tasks.iter().filter(|t| t.lock().unwrap().done == false);
-                if let Some(next_task) = tasks_left.next() {
+                if let Some(next_task) = unfinished_tasks.next() {
                     *active_task = Some(next_task.clone());
                     if *pause_iterations % 4 != 0 {
-                        new_state = SessionState::SmallBreak;
+                        new_active_state = SessionType::SmallBreak;
                     } else {
-                        new_state = SessionState::BigBreak;
+                        new_active_state = SessionType::BigBreak;
                     }
                 } else {
                     *active_task = None;
-                    new_state = SessionState::Finish;
+                    new_active_state = SessionType::Finish;
                 }
             }
-            SessionState::Idle => {
+            SessionType::Idle => {
                 *pause_iterations = 1;
-                let mut tasks_left = tasks.iter().filter(|t| t.lock().unwrap().done == false);
-                if let Some(next_task) = tasks_left.next() {
+                if let Some(next_task) = unfinished_tasks.next() {
                     *active_task = Some(next_task.clone());
-                    new_state = SessionState::Working;
+                    new_active_state = SessionType::Working;
                 }
             }
-            SessionState::Finish => {
-                new_state = SessionState::Idle;
+            SessionType::Finish => {
+                new_active_state = SessionType::Idle;
             }
             _ => {
                 *pause_iterations += 1;
-                new_state = SessionState::Working;
+                new_active_state = SessionType::Working;
             }
         }
 
-        *session_state = new_state;
-        new_state
+        *session_state = SessionState {
+            previous: previous_state,
+            active: new_active_state,
+            upcomming: Self::peek_advance(pomodoros_left, new_active_state, *pause_iterations),
+        };
     }
 }
 
@@ -163,10 +218,10 @@ fn get_state(state: State<AppState>) -> AppStateFrontend {
 }
 
 #[tauri::command]
-fn start_timer(handle: tauri::AppHandle, duration: i32, state: State<AppState>) {
+fn start_timer(handle: tauri::AppHandle, _duration: i32, state: State<AppState>) {
     let tasklist = state.tasks.lock().unwrap();
     let mut period = state.session_state.lock().unwrap();
-    *period = SessionState::Working;
+    period.active = SessionType::Working;
     handle
         .emit_all("start-timer", StartTimerEventPayload { duration: 25 })
         .unwrap();
@@ -339,7 +394,11 @@ fn main() {
     let app_state = AppState {
         tasks: Mutex::new(Vec::new()),
         active_task: Mutex::new(None),
-        session_state: Mutex::new(SessionState::Idle),
+        session_state: Mutex::new(SessionState {
+            previous: SessionType::Finish,
+            active: SessionType::Idle,
+            upcomming: SessionType::Working,
+        }),
         pause_iterations: Mutex::new(0),
     };
     let popup_state = PopupState {

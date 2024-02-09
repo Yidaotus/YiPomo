@@ -11,7 +11,12 @@ export type Task = {
   done: boolean;
 };
 
-type SessionState = "Idle" | "Working" | "SmallBreak" | "BigBreak" | "Finish";
+type SessionType = "Idle" | "Working" | "SmallBreak" | "BigBreak" | "Finish";
+type SessionState = {
+  previous: SessionType;
+  active: SessionType;
+  upcomming: SessionType;
+};
 type AddTaskPayload = Omit<Task, "id" | "completed">;
 type AppState = {
   tasks: Array<Task>;
@@ -74,11 +79,10 @@ const emitMutation = (mutation: MutationEvent) => {
   });
 };
 
-
 const useAppState = create<AppState>(() => ({
   tasks: [],
   activeTask: null,
-  sessionState: "Idle",
+  sessionState: { previous: "Finish", active: "Idle", upcomming: "Working" },
   moveTask: (ids) => {
     emitMutation({ name: "SwapTasks", value: ids });
   },
