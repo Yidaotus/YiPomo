@@ -1,6 +1,8 @@
 import { useAppState } from "@/lib/app-state";
+import { invoke } from "@tauri-apps/api";
 import { SunIcon } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
+import { useShallow } from "zustand/react/shallow";
 
 const PlayIcon = () => (
   <svg viewBox="0 0 32 32" fill="current" xmlns="http://www.w3.org/2000/svg">
@@ -185,8 +187,8 @@ const BigBreakTimeLine = () => {
         className="flex justify-center items-start flex-col h-full relative flex-shrink-0"
         style={{ width: `${timerSegmentWidth}px` }}
       >
-        <div className="w-12 h-12 relative -translate-x-1/2">
-          <SunIcon />
+        <div className="w-[43px] h-[43px] relative -translate-x-1/2">
+          <SunIcon className="w-[43px] h-[43px]" />
         </div>
         <div className="w-full h-auto absolute bottom-0 left-0 fill-muted-foreground stroke-muted-foreground">
           <TimeLine />
@@ -242,7 +244,12 @@ const IdleTimeLine = () => {
 
 const TimerDisplay = () => {
   const timerRef = useRef<HTMLDivElement>(null);
-  const state = useAppState((state) => state.sessionState);
+  const state = useAppState(useShallow((state) => state.sessionState));
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  const advanceState = useCallback(() => {
+    invoke("advance_state");
+  }, []);
 
   console.debug({ state });
 
@@ -272,10 +279,10 @@ const TimerDisplay = () => {
             moveTargetPixels = timerSegmentWidth + gap;
             break;
           case "BigBreak":
-            moveTargetPixels = 3 * timerSegmentWidth + 3 * gap;
+            moveTargetPixels = 3 * timerSegmentWidth + 2.5 * gap;
             break;
           default:
-            moveTargetPixels = 3 * timerSegmentWidth + 3 * gap;
+            moveTargetPixels = 3 * timerSegmentWidth + 2.5 * gap;
             break;
         }
         const moveTargetTime = 5 * 1000;
@@ -285,8 +292,17 @@ const TimerDisplay = () => {
         const pixelsToMove = moved * moveTargetPixels;
 
         timerDiv.style.transform = `translateX(-${pixelsToMove}px)`;
-        if (moved < 1 && state.active !== "Idle" && state.active !== "Finish") {
-          animationId = requestAnimationFrame(animationCallback);
+        if (
+          state.active !== "Idle" &&
+          state.active !== "Start" &&
+          state.active !== "Finish"
+        ) {
+          if (moved < 1) {
+            animationId = requestAnimationFrame(animationCallback);
+          } else {
+            audioRef.current?.play();
+            advanceState();
+          }
         }
       }
     };
@@ -295,13 +311,14 @@ const TimerDisplay = () => {
     return () => {
       cancelAnimationFrame(animationId);
     };
-  }, [state]);
+  }, [state, advanceState]);
 
   return (
     <div
       className="bg-muted h-[75px] rounded-lg shadow-[inset_0_4px_4px_rgba(0,0,0,0.2)] flex items-center overflow-hidden relative"
       style={{ width: `${timerWindowWidth}px` }}
     >
+      <audio src="/notification.wav" className="hidden" ref={audioRef} />
       <div className="absolute w-full h-full left-0 top-0 flex items-start justify-center fill-[#686e76] stroke-[#686e76]">
         <div className="w-4 h-4">
           <CenterIndicator />
@@ -318,13 +335,13 @@ const TimerDisplay = () => {
           ref={timerRef}
           className="flex justify-start text-5xl text-[#686e76] items-center w-full h-full relative font-medium fill-[#686e76] stroke-[#686e76]"
           style={{
-            left: `${timerWindowWidth / 2 - (timerSegmentWidth + gap * 2)}px`,
+            left: `${timerWindowWidth / 2 - timerSegmentWidth - 1.5 * gap}px`,
             gap: `${gap}px`,
           }}
         >
-          {(state.previous === "Idle" || state.previous === "Finish") && (
-            <IdleTimeLine />
-          )}
+          {(state.previous === "Idle" ||
+            state.previous === "Finish" ||
+            state.previous === "Start") && <IdleTimeLine />}
           {state.previous === "SmallBreak" && <SmallBreakTimeLine />}
           {state.previous === "BigBreak" && (
             <div
@@ -349,12 +366,21 @@ const TimerDisplay = () => {
             </div>
           )}
 
-          {state.active === "Idle" && <IdleTimeLine />}
+          {state.active === "Start" && <IdleTimeLine />}
+          {state.active === "Idle" && (
+            <>
+              {state.upcomming === "Working" && <WorkTimeLine />}
+              {state.upcomming === "SmallBreak" && <SmallBreakTimeLine />}
+              {state.upcomming === "BigBreak" && <BigBreakTimeLine />}
+            </>
+          )}
           {state.active === "Working" && <WorkTimeLine />}
           {state.active === "SmallBreak" && <SmallBreakTimeLine />}
           {state.active === "BigBreak" && <BigBreakTimeLine />}
 
-          {state.upcomming === "Idle" && <IdleTimeLine />}
+          {(state.upcomming === "Idle" || state.upcomming === "Start") && (
+            <IdleTimeLine />
+          )}
           {state.upcomming === "Working" && <WorkTimeLine />}
           {state.upcomming === "SmallBreak" && <SmallBreakTimeLine />}
           {state.upcomming === "BigBreak" && <BigBreakTimeLine />}

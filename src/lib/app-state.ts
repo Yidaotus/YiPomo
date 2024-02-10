@@ -11,7 +11,13 @@ export type Task = {
   done: boolean;
 };
 
-type SessionType = "Idle" | "Working" | "SmallBreak" | "BigBreak" | "Finish";
+type SessionType =
+  | "Idle"
+  | "Working"
+  | "SmallBreak"
+  | "BigBreak"
+  | "Finish"
+  | "Start";
 type SessionState = {
   previous: SessionType;
   active: SessionType;

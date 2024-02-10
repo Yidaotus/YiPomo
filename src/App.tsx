@@ -9,7 +9,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { invoke } from "@tauri-apps/api/tauri";
-import { FootprintsIcon, PlusCircle } from "lucide-react";
+import { CheckCircle, FootprintsIcon, PlusCircle } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import TaskView from "./components/Task";
 import { Button } from "./components/ui/button";
@@ -21,6 +21,7 @@ import {
   useSynchAppState,
 } from "./lib/app-state";
 import TimerDisplay from "./components/TimerDisplay";
+import { useShallow } from "zustand/react/shallow";
 
 function App() {
   const tasks = useAppState((state) => state.tasks);
@@ -30,14 +31,17 @@ function App() {
     finish: new Date(),
   });
 
+  const sessionState = useAppState(useShallow((state) => state.sessionState));
   const stateAddTask = useAppState((state) => state.addTask);
   const stateMoveTask = useAppState((state) => state.moveTask);
-  const activeTask = useAppState((state) => state.activeTask);
+  const activeTaskId = useAppState((state) => state.activeTask);
   useSynchAppState();
   const removeTask = useAppState((state) => state.removeTask);
   const checkTask = useAppState((state) => state.checkTask);
   const [taskNameInput, setTaskNameInput] = useState("");
   const [taskDurationInput, setTaskDurationInput] = useState(1);
+
+  const activeTask = tasks.find((t) => t.id === activeTaskId);
 
   const advanceState = useCallback(() => {
     invoke("advance_state");
@@ -128,16 +132,49 @@ function App() {
       <div className="w-full flex flex-col gap-4 justify-center items-center pt-12 pb-10">
         <TimerDisplay />
         <div className="h-12 w-[300px] relative">
-          <div className="relative w-full h-full group">
-            <div className="h-12 w-full absolute bottom-[-6px] left-0 bg-[#D9D9D9] group-hover:bg-[#E9E9E9] rounded-xl" />
-            <button
-              className="h-full bg-muted group-hover:bg-gray-100 disabled:text-muted-foreground disabled:cursor-not-allowed w-full rounded-xl flex items-center justify-center text-foreground text-lg font-medium relative shadow-[#D9D9D9] shadow"
-              onClick={advanceState}
-              disabled={tasks.length < 1}
-            >
-              Start Session
-            </button>
-          </div>
+          {["Idle", "Start", "Finish"].includes(sessionState.active) && (
+            <div className="relative w-full h-full group">
+              <div className="h-12 w-full absolute bottom-[-6px] left-0 bg-[#D9D9D9] group-hover:bg-[#E9E9E9] rounded-xl" />
+              <button
+                className="h-full bg-muted group-hover:bg-gray-100 disabled:text-muted-foreground disabled:cursor-not-allowed w-full rounded-xl flex items-center justify-center text-foreground text-lg font-medium relative shadow-[#D9D9D9] shadow"
+                onClick={advanceState}
+                disabled={tasks.length < 1}
+              >
+                {sessionState.upcomming === "Working" && (
+                  <span>Start Work Period</span>
+                )}
+                {sessionState.upcomming === "SmallBreak" && (
+                  <span>Start Pause Period</span>
+                )}
+                {sessionState.upcomming === "BigBreak" && (
+                  <span>Start Big Pause Period</span>
+                )}
+              </button>
+            </div>
+          )}
+          {sessionState.active === "Working" && (
+            <div className="w-full h-full relative">
+              <div className="w-full h-full bg-muted text-foreground rounded-xl flex items-center justify-between text-lg shadow relative z-20 font-medium px-4">
+                <span className="text-muted-foreground">
+                  <CheckCircle className="w-4 h-4" />
+                </span>
+                <span>{activeTask?.name}</span>
+
+                <div className="text-sm relative text-muted-foreground">
+                  <span className="relative left-[-1px] top-[-5px] inline-block">
+                    {activeTask?.completed}
+                  </span>
+                  <span className="relative inline-block rotate-12">/</span>
+                  <span className="relative left-[1px] top-[5px] inline-block">
+                    {activeTask?.length}
+                  </span>
+                </div>
+              </div>
+              <div className="h-full w-[95%] absolute bottom-[-12px] left-1/2 -translate-x-1/2 bg-[#D9D9D9] rounded-2xl shadow z-10" />
+            </div>
+          )}
+          {sessionState.active === "Start" && <span>Start Pomodoros</span>}
+          {sessionState.active === "Finish" && <span>Restart Pomodoros</span>}
         </div>
       </div>
       <div className="flex flex-col pb-4 flex-1 h-full overflow-auto">
@@ -148,7 +185,7 @@ function App() {
             .filter((t) => !t.done)
             .map((task, i) => (
               <TaskView
-                activeTaskId={activeTask}
+                activeTaskId={activeTaskId}
                 key={task.id}
                 checkTask={checkTask}
                 task={task}
@@ -162,7 +199,7 @@ function App() {
             .sort((t1, t2) => t1.name.localeCompare(t2.name))
             .map((task, i) => (
               <TaskView
-                activeTaskId={activeTask}
+                activeTaskId={activeTaskId}
                 key={task.id}
                 checkTask={checkTask}
                 task={task}

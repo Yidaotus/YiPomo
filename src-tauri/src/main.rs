@@ -29,6 +29,7 @@ type TaskList = Mutex<Vec<TaskItem>>;
 
 #[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq)]
 enum SessionType {
+    Start,
     Idle,
     Working,
     SmallBreak,
@@ -58,33 +59,46 @@ impl AppState {
     fn peek_advance(
         pomodoros_left: u32,
         active_session_type: SessionType,
+        previous_session_type: SessionType,
         pause_iterations: u32,
     ) -> SessionType {
         let new_active_state;
         match active_session_type {
             SessionType::Working => {
                 if pomodoros_left > 0 {
+                    new_active_state = SessionType::Idle;
+                    // if pause_iterations % 4 != 0 {
+                    //     new_active_state = sessiontype::smallbreak;
+                    // } else {
+                    //     new_active_state = sessiontype::bigbreak;
+                    // }
+                } else {
+                    new_active_state = SessionType::Finish;
+                }
+            }
+            SessionType::Start => {
+                if pomodoros_left > 0 {
+                    new_active_state = SessionType::Working;
+                } else {
+                    new_active_state = SessionType::Start;
+                }
+            }
+            SessionType::Idle => {
+                if previous_session_type == SessionType::Working {
                     if pause_iterations % 4 != 0 {
                         new_active_state = SessionType::SmallBreak;
                     } else {
                         new_active_state = SessionType::BigBreak;
                     }
                 } else {
-                    new_active_state = SessionType::Finish;
-                }
-            }
-            SessionType::Idle => {
-                if pomodoros_left > 0 {
                     new_active_state = SessionType::Working;
-                } else {
-                    new_active_state = SessionType::Idle;
                 }
             }
             SessionType::Finish => {
-                new_active_state = SessionType::Idle;
+                new_active_state = SessionType::Start;
             }
             _ => {
-                new_active_state = SessionType::Working;
+                new_active_state = SessionType::Idle;
             }
         }
 
@@ -115,13 +129,17 @@ impl AppState {
                     *active_task = None;
                 }
             }
-            SessionType::Idle => {
-                *pause_iterations = 1;
+            SessionType::Start => {
                 if let Some(next_task) = unfinished_tasks.next() {
                     *active_task = Some(next_task.clone());
+                } else {
+                    *active_task = None;
                 }
             }
-            SessionType::Finish => {}
+            SessionType::Idle => {}
+            SessionType::Finish => {
+                *pause_iterations = 1;
+            }
             _ => {
                 *pause_iterations += 1;
             }
@@ -136,11 +154,13 @@ impl AppState {
             })
             .sum();
 
-        eprint!("Pomos Left: {}", pomodoros_left);
-
         let previous_state = session_state.active;
-        let next_state =
-            Self::peek_advance(pomodoros_left, session_state.active, *pause_iterations);
+        let next_state = Self::peek_advance(
+            pomodoros_left,
+            session_state.active,
+            session_state.previous,
+            *pause_iterations,
+        );
 
         let mut upcomming_pomodoros_left = pomodoros_left;
         if next_state == SessionType::Working {
@@ -150,16 +170,25 @@ impl AppState {
         if next_state == SessionType::SmallBreak || next_state == SessionType::BigBreak {
             upcomming_pause_iterations += 1;
         }
-        let upcomming_state = Self::peek_advance(
+        let mut upcomming_state = Self::peek_advance(
             upcomming_pomodoros_left,
             next_state,
+            previous_state,
             upcomming_pause_iterations,
         );
+        if upcomming_state == SessionType::Idle {
+            upcomming_state = Self::peek_advance(upcomming_pomodoros_left, upcomming_state, next_state, upcomming_pause_iterations);
+        }
+        eprint!("Current State: {:?}, ", session_state);
         *session_state = SessionState {
             previous: previous_state,
             active: next_state,
             upcomming: upcomming_state,
         };
+        eprintln!(
+            "New State: {:?}, Upcomming State: {:?}",
+            session_state, upcomming_state
+        );
     }
 }
 
@@ -298,7 +327,7 @@ fn mutate_state(
     state: State<'_, AppState>,
     handle: tauri::AppHandle,
 ) -> Result<(), ()> {
-    eprint!("Got Command! {value:?}");
+    eprintln!("Got Command! {value:?}");
     match value {
         StateMutateEvent::AddTask(new_task) => {
             let mut tasks = state.tasks.lock().unwrap();
@@ -403,10 +432,10 @@ fn main() {
         active_task: Mutex::new(None),
         session_state: Mutex::new(SessionState {
             previous: SessionType::Finish,
-            active: SessionType::Idle,
+            active: SessionType::Start,
             upcomming: SessionType::Working,
         }),
-        pause_iterations: Mutex::new(0),
+        pause_iterations: Mutex::new(1),
     };
     let popup_state = PopupState {
         popup: Mutex::new(None),
