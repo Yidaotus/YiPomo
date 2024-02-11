@@ -15,7 +15,7 @@ import {
   PictureInPicture2Icon,
   PlusCircle,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import TaskView from "./components/Task";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
@@ -30,6 +30,7 @@ import { useShallow } from "zustand/react/shallow";
 
 function App() {
   const tasks = useAppState((state) => state.tasks);
+  const [popupVisible, setPopupVisible] = useState(false);
   const [finishTimeValues, setFinishTimeValues] = useState({
     sessionHours: 0,
     sessionMinutes: 0,
@@ -58,6 +59,7 @@ function App() {
 
   const togglePopup = async () => {
     await invoke("toggle_popup", {});
+    setPopupVisible((visible) => !visible);
   };
 
   useEffect(() => {
@@ -136,7 +138,7 @@ function App() {
         </Button>
       </div>
       <div className="w-full flex flex-col gap-4 justify-center items-center pt-12 pb-10">
-        <TimerDisplay />
+        <TimerDisplay advance={!popupVisible} />
         <div className="h-12 w-[300px] relative">
           {["Idle", "Start", "Finish"].includes(sessionState.active) && (
             <div className="relative w-full h-full group">

@@ -189,7 +189,11 @@ const IdleTimeLine = () => {
   );
 };
 
-const TimerDisplay = () => {
+type TimerDisplayProps = {
+  advance?: boolean;
+};
+
+const TimerDisplay = ({ advance = true }: TimerDisplayProps) => {
   const timerRef = useRef<HTMLDivElement>(null);
   const state = useAppState(useShallow((state) => state.sessionState));
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -197,8 +201,6 @@ const TimerDisplay = () => {
   const advanceState = useCallback(() => {
     invoke("advance_state");
   }, []);
-
-  console.debug({ state });
 
   useEffect(() => {
     let start: number | undefined = undefined;
@@ -214,6 +216,7 @@ const TimerDisplay = () => {
       if (timerDiv) {
         const timeDiff = timeStamp - start;
         let moveTargetPixels;
+        let moveTargetTime = 0;
         switch (state.active) {
           case "Finish":
           case "Idle":
@@ -221,18 +224,20 @@ const TimerDisplay = () => {
             break;
           case "Working":
             moveTargetPixels = 5 * timerSegmentWidth + 5 * gap;
+            moveTargetTime = 25 * 60 * 1000;
             break;
           case "SmallBreak":
             moveTargetPixels = timerSegmentWidth + gap;
+            moveTargetTime = 5 * 60 * 1000;
             break;
           case "BigBreak":
             moveTargetPixels = 3 * timerSegmentWidth + 2.5 * gap;
+            moveTargetTime = 15 * 60 * 1000;
             break;
           default:
             moveTargetPixels = 3 * timerSegmentWidth + 2.5 * gap;
             break;
         }
-        const moveTargetTime = 5 * 1000;
 
         counter += timeDiff;
         const moved = timeDiff / moveTargetTime;
@@ -247,8 +252,10 @@ const TimerDisplay = () => {
           if (moved < 1) {
             animationId = requestAnimationFrame(animationCallback);
           } else {
-            audioRef.current?.play();
-            advanceState();
+            if (advance) {
+              audioRef.current?.play();
+              advanceState();
+            }
           }
         }
       }
@@ -262,7 +269,7 @@ const TimerDisplay = () => {
 
   return (
     <div
-      className="bg-muted min-h-[75px] max-h-[75px] rounded-lg shadow-[inset_0_4px_4px_rgba(0,0,0,0.2)] flex items-center overflow-hidden relative"
+      className="bg-muted h-[75px] rounded-lg shadow-[inset_0_4px_4px_rgba(0,0,0,0.2)] flex items-center overflow-hidden relative"
       style={{ width: `${timerWindowWidth}px` }}
     >
       <audio src="/notification.wav" className="hidden" ref={audioRef} />

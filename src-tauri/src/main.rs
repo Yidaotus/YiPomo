@@ -404,7 +404,7 @@ async fn toggle_popup(handle: tauri::AppHandle, state: State<'_, PopupState>) ->
             "popup", /* the unique window label */
             tauri::WindowUrl::App("popup.html".into()),
         )
-        .inner_size(300.0, 125.0)
+        .inner_size(375.0, 165.0)
         .resizable(false)
         .decorations(false)
         .always_on_top(true)

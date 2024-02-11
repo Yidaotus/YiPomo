@@ -1,4 +1,11 @@
-import { CheckCircle, FootprintsIcon, GripIcon, SunIcon } from "lucide-react";
+import {
+  CheckCircle,
+  FootprintsIcon,
+  GripIcon,
+  PauseIcon,
+  SkipForwardIcon,
+  SunIcon,
+} from "lucide-react";
 import { useCallback } from "react";
 import { useAppState, useInitializeAppState } from "../lib/app-state";
 import TimerDisplay from "@/components/TimerDisplay";
@@ -20,17 +27,21 @@ const Popup = () => {
 
   return (
     <div
-      className="hover:opacity-100 opacity-90 bg-background flex items-center justify-center  rounded-xl relative transition-opacity w-screen h-screen overflow-hidden"
+      className="hover:opacity-100 opacity-100 bg-background flex items-center justify-center  rounded-xl relative transition-opacity w-[340px] h-[150px] group/container border border-muted"
       style={{ transitionDuration: "500ms" }}
     >
       <div
-        className="fixed right-4 top-4 w-4 h-4 select-none z-50 rounded cursor-move"
+        className="opacity-0 group-hover/container:opacity-100 fixed right-2 top-2 w-4 h-4 select-none z-50 rounded cursor-move transition-opacity"
         data-tauri-drag-region
       >
-        <GripIcon className="h-4 w-4 text-primary select-none pointer-events-none" />
+        <GripIcon className="h-4 w-4 text-muted-foreground select-none pointer-events-none" />
       </div>
       <div className="w-full h-full flex flex-col gap-2 justify-center items-center">
-        <TimerDisplay />
+        <div className="w-full flex justify-between items-center px-4 text-muted-foreground">
+          <PauseIcon className="w-8 h-8 stroke-1" />
+          <TimerDisplay />
+          <SkipForwardIcon className="w-8 h-8 stroke-1" />
+        </div>
 
         <div className="h-[50px]">
           <div className="w-[295px] relative">
