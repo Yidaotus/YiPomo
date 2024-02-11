@@ -9,7 +9,12 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { invoke } from "@tauri-apps/api/tauri";
-import { CheckCircle, FootprintsIcon, PlusCircle } from "lucide-react";
+import {
+  CheckCircle,
+  FootprintsIcon,
+  PictureInPicture2Icon,
+  PlusCircle,
+} from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import TaskView from "./components/Task";
 import { Button } from "./components/ui/button";
@@ -51,16 +56,8 @@ function App() {
     removeTask(taskId);
   }, []);
 
-  const closePopup = async () => {
-    await invoke("close_popup", {});
-  };
-
-  const showPopup = async () => {
-    await invoke("open_popup", {});
-  };
-
-  const startTimer = async () => {
-    await invoke("start_timer", { duration: 25 });
+  const togglePopup = async () => {
+    await invoke("toggle_popup", {});
   };
 
   useEffect(() => {
@@ -129,14 +126,23 @@ function App() {
 
   return (
     <div className="h-screen flex flex-col px-4 pb-4 bg-background">
+      <div className="absolute top-4 right-12 w-4 h-4">
+        <Button
+          variant="ghost"
+          className="text-foreground"
+          onClick={togglePopup}
+        >
+          <PictureInPicture2Icon className="w-4 h-5" />
+        </Button>
+      </div>
       <div className="w-full flex flex-col gap-4 justify-center items-center pt-12 pb-10">
         <TimerDisplay />
         <div className="h-12 w-[300px] relative">
           {["Idle", "Start", "Finish"].includes(sessionState.active) && (
             <div className="relative w-full h-full group">
-              <div className="h-12 w-full absolute bottom-[-6px] left-0 bg-[#D9D9D9] group-hover:bg-[#E9E9E9] rounded-xl" />
-              <button
-                className="h-full bg-muted group-hover:bg-gray-100 disabled:text-muted-foreground disabled:cursor-not-allowed w-full rounded-xl flex items-center justify-center text-foreground text-lg font-medium relative shadow-[#D9D9D9] shadow"
+              <div className="h-12 w-full absolute bottom-[-6px] left-0 bg-[#D9D9D9] group-hover:bg-[#D9D9D950] rounded-xl" />
+              <Button
+                className="relative w-full h-full text-base font-medium bg-muted text-foreground group-hover:bg-muted/80"
                 onClick={advanceState}
                 disabled={tasks.length < 1}
               >
@@ -144,12 +150,18 @@ function App() {
                   <span>Start Work Period</span>
                 )}
                 {sessionState.upcomming === "SmallBreak" && (
-                  <span>Start Pause Period</span>
+                  <span>Time to strech your legs!</span>
                 )}
                 {sessionState.upcomming === "BigBreak" && (
                   <span>Start Big Pause Period</span>
                 )}
-              </button>
+                {sessionState.active === "Start" && (
+                  <span>Start Pomodoros</span>
+                )}
+                {sessionState.active === "Finish" && (
+                  <span>Restart Pomodoros</span>
+                )}
+              </Button>
             </div>
           )}
           {sessionState.active === "Working" && (
@@ -170,11 +182,9 @@ function App() {
                   </span>
                 </div>
               </div>
-              <div className="h-full w-[95%] absolute bottom-[-12px] left-1/2 -translate-x-1/2 bg-[#D9D9D9] rounded-2xl shadow z-10" />
+              <div className="h-full w-[95%] absolute bottom-[-8px] left-1/2 -translate-x-1/2 bg-[#D9D9D9] rounded-2xl shadow z-10" />
             </div>
           )}
-          {sessionState.active === "Start" && <span>Start Pomodoros</span>}
-          {sessionState.active === "Finish" && <span>Restart Pomodoros</span>}
         </div>
       </div>
       <div className="flex flex-col pb-4 flex-1 h-full overflow-auto">

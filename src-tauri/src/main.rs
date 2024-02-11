@@ -393,20 +393,11 @@ fn mutate_state(
 }
 
 #[tauri::command]
-async fn close_popup(state: State<'_, PopupState>) -> Result<(), ()> {
+async fn toggle_popup(handle: tauri::AppHandle, state: State<'_, PopupState>) -> Result<(), ()> {
     let mut popup_m = state.popup.lock().unwrap();
     if let Some(popup) = popup_m.as_ref() {
         let _ = popup.close();
-    }
-    *popup_m = None;
-    Ok(())
-}
-
-#[tauri::command]
-async fn open_popup(handle: tauri::AppHandle, state: State<'_, PopupState>) -> Result<(), ()> {
-    let mut popup_m = state.popup.lock().unwrap();
-    if let Some(popup) = popup_m.as_ref() {
-        popup.show().unwrap();
+        *popup_m = None;
     } else {
         let docs_window = tauri::WindowBuilder::new(
             &handle,
@@ -444,11 +435,10 @@ fn main() {
         .manage(app_state)
         .manage(popup_state)
         .invoke_handler(tauri::generate_handler![
-            open_popup,
+            toggle_popup,
             start_timer,
             get_state,
             mutate_state,
-            close_popup,
             advance_state
         ])
         .run(tauri::generate_context!())
