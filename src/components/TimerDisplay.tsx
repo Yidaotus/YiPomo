@@ -195,34 +195,41 @@ type TimerDisplayProps = {
 
 const TimerDisplay = ({ advance = true }: TimerDisplayProps) => {
   const timerRef = useRef<HTMLDivElement>(null);
-  const state = useAppState(useShallow((state) => state.sessionState));
+  const activeSession = useAppState(useShallow((state) => state.activeSession));
+  const upcommingSession = useAppState(
+    useShallow((state) => state.upcommingSession),
+  );
+  const isPaused = useAppState((state) => state.isPaused);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const translatePosition = useRef(0);
 
   const advanceState = useCallback(() => {
     invoke("advance_state");
   }, []);
 
   useEffect(() => {
-    let start: number | undefined = undefined;
-    let counter = 0;
-    let animationId: number;
+    let animationId: ReturnType<typeof requestAnimationFrame>;
     const timerDiv = timerRef.current;
     if (!timerDiv) return;
-    timerDiv.style.transform = "translateX(0px)";
+    timerDiv.style.transform = `translateX(-${translatePosition.current}px)`;
 
-    const animationCallback = (timeStamp: number) => {
-      if (start === undefined) {
-        start = timeStamp;
+    let timePrev: number;
+    const animationCallback = () => {
+      if (isPaused) return;
+      if (
+        activeSession === "Idle" ||
+        activeSession === "Start" ||
+        activeSession === "Finish"
+      ) {
+        return;
       }
 
-      const timeDiff = timeStamp - start;
+      const delta = Date.now() - timePrev;
+      timePrev = Date.now();
+
       let moveTargetPixels;
-      let moveTargetTime = 0;
-      switch (state.active) {
-        case "Finish":
-        case "Idle":
-          moveTargetPixels = 0;
-          break;
+      let moveTargetTime;
+      switch (activeSession) {
         case "Working":
           moveTargetPixels = 5 * timerSegmentWidth + 5 * gap;
           moveTargetTime = 25 * 1000;
@@ -235,39 +242,30 @@ const TimerDisplay = ({ advance = true }: TimerDisplayProps) => {
           moveTargetPixels = 3 * timerSegmentWidth + 2.5 * gap;
           moveTargetTime = 15 * 1000;
           break;
-        default:
-          moveTargetPixels = 3 * timerSegmentWidth + 2.5 * gap;
-          break;
       }
 
-      counter += timeDiff;
-      const moved = timeDiff / moveTargetTime;
-      const pixelsToMove = moved * moveTargetPixels;
-
-      timerDiv.style.transform = `translateX(-${pixelsToMove}px)`;
-      if (
-        state.active !== "Idle" &&
-        state.active !== "Start" &&
-        state.active !== "Finish"
-      ) {
-        if (moved < 1) {
-          animationId = requestAnimationFrame(animationCallback);
-        } else {
-          if (advance) {
-            audioRef.current?.play();
-            advanceState();
-          }
+      translatePosition.current += (delta / moveTargetTime) * moveTargetPixels;
+      timerDiv.style.transform = `translateX(-${translatePosition.current}px)`;
+      if (translatePosition.current < moveTargetPixels) {
+        animationId = requestAnimationFrame(animationCallback);
+      } else {
+        if (advance) {
+          translatePosition.current = 0;
+          audioRef.current?.play();
+          advanceState();
         }
       }
     };
 
+    timePrev = Date.now();
+    // requestAnimationFrame is not needed as our animation is way
+    // too little for it to be needed!
     animationId = requestAnimationFrame(animationCallback);
     return () => {
+      // clearTimeout(animationId);
       cancelAnimationFrame(animationId);
     };
-  }, [state, advanceState]);
-
-  console.debug({ state });
+  }, [activeSession, advanceState, isPaused]);
 
   return (
     <div
@@ -295,6 +293,8 @@ const TimerDisplay = ({ advance = true }: TimerDisplayProps) => {
             gap: `${gap}px`,
           }}
         >
+          {/*
+             *
           {(state.previous === "Idle" ||
             state.previous === "Finish" ||
             state.previous === "Start") && <IdleTimeLine />}
@@ -321,25 +321,26 @@ const TimerDisplay = ({ advance = true }: TimerDisplayProps) => {
               </div>
             </div>
           )}
+             */}
 
-          {state.active === "Start" && <IdleTimeLine />}
-          {state.active === "Idle" && (
+          {activeSession === "Start" && <IdleTimeLine />}
+          {activeSession === "Idle" && (
             <>
-              {state.upcomming === "Working" && <WorkTimeLine />}
-              {state.upcomming === "SmallBreak" && <SmallBreakTimeLine />}
-              {state.upcomming === "BigBreak" && <BigBreakTimeLine />}
+              {upcommingSession === "Working" && <WorkTimeLine />}
+              {upcommingSession === "SmallBreak" && <SmallBreakTimeLine />}
+              {upcommingSession === "BigBreak" && <BigBreakTimeLine />}
             </>
           )}
-          {state.active === "Working" && <WorkTimeLine />}
-          {state.active === "SmallBreak" && <SmallBreakTimeLine />}
-          {state.active === "BigBreak" && <BigBreakTimeLine />}
+          {activeSession === "Working" && <WorkTimeLine />}
+          {activeSession === "SmallBreak" && <SmallBreakTimeLine />}
+          {activeSession === "BigBreak" && <BigBreakTimeLine />}
 
-          {(state.upcomming === "Idle" || state.upcomming === "Start") && (
+          {(activeSession === "Idle" || activeSession === "Start") && (
             <IdleTimeLine />
           )}
-          {state.upcomming === "Working" && <WorkTimeLine />}
-          {state.upcomming === "SmallBreak" && <SmallBreakTimeLine />}
-          {state.upcomming === "BigBreak" && <BigBreakTimeLine />}
+          {upcommingSession === "Working" && <WorkTimeLine />}
+          {upcommingSession === "SmallBreak" && <SmallBreakTimeLine />}
+          {upcommingSession === "BigBreak" && <BigBreakTimeLine />}
         </div>
       </div>
     </div>

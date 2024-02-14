@@ -16,6 +16,7 @@ import { invoke } from "@tauri-apps/api";
 const Popup = () => {
   useInitializeAppState();
 
+  const pause = useAppState((state) => state.pause);
   const tasks = useAppState((state) => state.tasks);
   const sessionState = useAppState(useShallow((state) => state.sessionState));
   const activeTaskId = useAppState((state) => state.activeTask);
@@ -38,9 +39,13 @@ const Popup = () => {
       </div>
       <div className="w-full h-full flex flex-col gap-2 justify-center items-center">
         <div className="w-full flex justify-between items-center px-4 text-muted-foreground">
-          <PauseIcon className="w-8 h-8 stroke-1" />
+          <Button variant="link" onClick={pause} className="w-8 h-8 p-0">
+            <PauseIcon className="w-8 h-8 stroke-1 text-muted-foreground" />
+          </Button>
           <TimerDisplay />
-          <SkipForwardIcon className="w-8 h-8 stroke-1" />
+          <Button variant="link" onClick={pause} className="w-8 h-8 p-0">
+            <SkipForwardIcon className="w-8 h-8 stroke-1 text-muted-foreground" />
+          </Button>
         </div>
 
         <div className="h-[50px]">

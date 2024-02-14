@@ -3,12 +3,8 @@
 use nanoid::nanoid;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
+use std::time::SystemTime;
 use tauri::{AppHandle, Manager, State};
-
-#[derive(Clone, Serialize)]
-struct StartTimerEventPayload {
-    duration: i32,
-}
 
 #[derive(Clone, Serialize)]
 struct SetActiveTaskPayload {
@@ -31,6 +27,7 @@ type TaskList = Mutex<Vec<TaskItem>>;
 enum SessionType {
     Start,
     Idle,
+    Pause,
     Working,
     SmallBreak,
     BigBreak,
@@ -39,9 +36,8 @@ enum SessionType {
 
 #[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq)]
 struct SessionState {
-    previous: SessionType,
-    active: SessionType,
-    upcomming: SessionType,
+    start: u64,
+    session_type: SessionType,
 }
 
 struct PopupState {
@@ -51,27 +47,21 @@ struct PopupState {
 struct AppState {
     tasks: TaskList,
     active_task: Mutex<Option<TaskItem>>,
-    session_state: Mutex<SessionState>,
-    pause_iterations: Mutex<u32>,
+    session_history: Mutex<Vec<SessionState>>,
+    active_session: Mutex<SessionState>,
 }
 
 impl AppState {
-    fn peek_advance(
+    fn calculate_next_state(
         pomodoros_left: u32,
         active_session_type: SessionType,
-        previous_session_type: SessionType,
-        pause_iterations: u32,
+        session_history: &Vec<SessionState>,
     ) -> SessionType {
         let new_active_state;
         match active_session_type {
             SessionType::Working => {
                 if pomodoros_left > 0 {
                     new_active_state = SessionType::Idle;
-                    // if pause_iterations % 4 != 0 {
-                    //     new_active_state = sessiontype::smallbreak;
-                    // } else {
-                    //     new_active_state = sessiontype::bigbreak;
-                    // }
                 } else {
                     new_active_state = SessionType::Finish;
                 }
@@ -84,11 +74,21 @@ impl AppState {
                 }
             }
             SessionType::Idle => {
-                if previous_session_type == SessionType::Working {
-                    if pause_iterations % 4 != 0 {
-                        new_active_state = SessionType::SmallBreak;
-                    } else {
+                if session_history.iter().last().unwrap().session_type == SessionType::Working {
+                    let mut small_pauses = 0;
+                    for session in session_history.iter().rev() {
+                        if session.session_type == SessionType::BigBreak {
+                            break;
+                        };
+                        if session.session_type == SessionType::SmallBreak {
+                            small_pauses += 1;
+                        }
+                    }
+
+                    if small_pauses >= 3 {
                         new_active_state = SessionType::BigBreak;
+                    } else {
+                        new_active_state = SessionType::SmallBreak;
                     }
                 } else {
                     new_active_state = SessionType::Working;
@@ -96,6 +96,9 @@ impl AppState {
             }
             SessionType::Finish => {
                 new_active_state = SessionType::Start;
+            }
+            SessionType::Pause => {
+                new_active_state = session_history.iter().last().unwrap().session_type;
             }
             _ => {
                 new_active_state = SessionType::Idle;
@@ -105,14 +108,54 @@ impl AppState {
         new_active_state
     }
 
+    fn pause(&self) {
+        let mut active_session = self.active_session.lock().unwrap();
+        let mut session_history = self.session_history.lock().unwrap();
+
+        let now = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let new_session = SessionState {
+            session_type: SessionType::Pause,
+            start: now,
+        };
+        *active_session = new_session;
+        session_history.push(new_session);
+    }
+
+    fn peek_next(&self) -> SessionType {
+        let tasks = self.tasks.lock().unwrap();
+        let active_session = self.active_session.lock().unwrap();
+        let session_history = self.session_history.lock().unwrap();
+
+        let mut pomodoros_left = tasks
+            .iter()
+            .filter(|t| t.lock().unwrap().done == false)
+            .map(|t| {
+                let unf_t = t.lock().unwrap();
+                unf_t.length - unf_t.completed
+            })
+            .sum();
+        if active_session.session_type == SessionType::Working {
+            pomodoros_left -= 1;
+        }
+
+        Self::calculate_next_state(
+            pomodoros_left,
+            active_session.session_type,
+            &session_history,
+        )
+    }
+
     fn advance(&self) {
         let tasks = self.tasks.lock().unwrap();
         let mut active_task = self.active_task.lock().unwrap();
-        let mut session_state = self.session_state.lock().unwrap();
-        let mut pause_iterations = self.pause_iterations.lock().unwrap();
+        let mut active_session = self.active_session.lock().unwrap();
+        let mut session_history = self.session_history.lock().unwrap();
 
         let mut unfinished_tasks = tasks.iter().filter(|t| t.lock().unwrap().done == false);
-        match session_state.active {
+        match active_session.session_type {
             SessionType::Working => {
                 if let Some(t) = active_task.as_ref() {
                     let mut task = t.lock().unwrap();
@@ -136,13 +179,7 @@ impl AppState {
                     *active_task = None;
                 }
             }
-            SessionType::Idle => {}
-            SessionType::Finish => {
-                *pause_iterations = 1;
-            }
-            _ => {
-                *pause_iterations += 1;
-            }
+            _ => {}
         }
 
         let pomodoros_left = tasks
@@ -154,41 +191,21 @@ impl AppState {
             })
             .sum();
 
-        let previous_state = session_state.active;
-        let next_state = Self::peek_advance(
+        let next_state = Self::calculate_next_state(
             pomodoros_left,
-            session_state.active,
-            session_state.previous,
-            *pause_iterations,
+            active_session.session_type,
+            &session_history,
         );
 
-        let mut upcomming_pomodoros_left = pomodoros_left;
-        if next_state == SessionType::Working {
-            upcomming_pomodoros_left -= 1;
-        }
-        let mut upcomming_pause_iterations = *pause_iterations;
-        if next_state == SessionType::SmallBreak || next_state == SessionType::BigBreak {
-            upcomming_pause_iterations += 1;
-        }
-        let mut upcomming_state = Self::peek_advance(
-            upcomming_pomodoros_left,
-            next_state,
-            previous_state,
-            upcomming_pause_iterations,
-        );
-        if upcomming_state == SessionType::Idle {
-            upcomming_state = Self::peek_advance(upcomming_pomodoros_left, upcomming_state, next_state, upcomming_pause_iterations);
-        }
-        eprint!("Current State: {:?}, ", session_state);
-        *session_state = SessionState {
-            previous: previous_state,
-            active: next_state,
-            upcomming: upcomming_state,
+        let now = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        session_history.push(*active_session);
+        *active_session = SessionState {
+            session_type: next_state,
+            start: now,
         };
-        eprintln!(
-            "New State: {:?}, Upcomming State: {:?}",
-            session_state, upcomming_state
-        );
     }
 }
 
@@ -197,8 +214,10 @@ struct AppStateFrontend {
     tasks: Vec<Task>,
     #[serde(rename = "activeTask")]
     active_task: Option<Task>,
-    #[serde(rename = "sessionState")]
-    session_state: SessionState,
+    #[serde(rename = "activeSession")]
+    active_session: SessionType,
+    #[serde(rename = "upcommingSession")]
+    upcomming_session: SessionType,
 }
 
 #[tauri::command]
@@ -227,7 +246,7 @@ fn advance_state(state: State<AppState>, handle: AppHandle) {
     handle
         .emit_all(
             "synch_state",
-            StateSynchEvent::SessionState(state.session_state.lock().unwrap().clone()),
+            StateSynchEvent::SessionState(state.active_session.lock().unwrap().clone()),
         )
         .unwrap();
 }
@@ -246,33 +265,17 @@ fn get_state(state: State<AppState>) -> AppStateFrontend {
         None => None,
     };
 
+    let state_lock = state.active_session.lock().unwrap();
+    let active_session = state_lock.session_type.clone();
+
+    drop(tasklist);
+    drop(state_lock);
+
     AppStateFrontend {
         tasks: tasks_fr,
         active_task: active_task_fr,
-        session_state: *state.session_state.lock().unwrap(),
-    }
-}
-
-#[tauri::command]
-fn start_timer(handle: tauri::AppHandle, _duration: i32, state: State<AppState>) {
-    let tasklist = state.tasks.lock().unwrap();
-    let mut period = state.session_state.lock().unwrap();
-    period.active = SessionType::Working;
-    handle
-        .emit_all("start-timer", StartTimerEventPayload { duration: 25 })
-        .unwrap();
-
-    if let Some(tasklist_first_task) = tasklist.first() {
-        let mut at = state.active_task.lock().unwrap();
-        *at = Some(Arc::clone(tasklist_first_task));
-        handle
-            .emit_all(
-                "set-active-task",
-                SetActiveTaskPayload {
-                    task: tasklist_first_task.lock().unwrap().name.clone(),
-                },
-            )
-            .unwrap();
+        active_session,
+        upcomming_session: state.peek_next(),
     }
 }
 
@@ -418,15 +421,21 @@ async fn toggle_popup(handle: tauri::AppHandle, state: State<'_, PopupState>) ->
 }
 
 fn main() {
+    let now = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
     let app_state = AppState {
         tasks: Mutex::new(Vec::new()),
         active_task: Mutex::new(None),
-        session_state: Mutex::new(SessionState {
-            previous: SessionType::Finish,
-            active: SessionType::Start,
-            upcomming: SessionType::Working,
+        session_history: Mutex::new(vec![SessionState {
+            session_type: SessionType::Start,
+            start: now,
+        }]),
+        active_session: Mutex::new(SessionState {
+            session_type: SessionType::Start,
+            start: now,
         }),
-        pause_iterations: Mutex::new(1),
     };
     let popup_state = PopupState {
         popup: Mutex::new(None),
@@ -436,7 +445,6 @@ fn main() {
         .manage(popup_state)
         .invoke_handler(tauri::generate_handler![
             toggle_popup,
-            start_timer,
             get_state,
             mutate_state,
             advance_state

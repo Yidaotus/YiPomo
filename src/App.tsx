@@ -9,13 +9,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { invoke } from "@tauri-apps/api/tauri";
-import {
-  CheckCircle,
-  FootprintsIcon,
-  PictureInPicture2Icon,
-  PlusCircle,
-} from "lucide-react";
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { CheckCircle, PictureInPicture2Icon, PlusCircle } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import TaskView from "./components/Task";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
@@ -37,7 +32,10 @@ function App() {
     finish: new Date(),
   });
 
-  const sessionState = useAppState(useShallow((state) => state.sessionState));
+  const activeSession = useAppState(useShallow((state) => state.activeSession));
+  const upcommingSession = useAppState(
+    useShallow((state) => state.upcommingSession),
+  );
   const stateAddTask = useAppState((state) => state.addTask);
   const stateMoveTask = useAppState((state) => state.moveTask);
   const activeTaskId = useAppState((state) => state.activeTask);
@@ -140,7 +138,7 @@ function App() {
       <div className="w-full flex flex-col gap-4 justify-center items-center pt-12 pb-10">
         <TimerDisplay advance={!popupVisible} />
         <div className="h-12 w-[300px] relative">
-          {["Idle", "Start", "Finish"].includes(sessionState.active) && (
+          {["Idle", "Start", "Finish"].includes(activeSession) && (
             <div className="relative w-full h-full group">
               <div className="h-12 w-full absolute bottom-[-6px] left-0 bg-[#D9D9D9] group-hover:bg-[#D9D9D950] rounded-xl" />
               <Button
@@ -148,25 +146,21 @@ function App() {
                 onClick={advanceState}
                 disabled={tasks.length < 1}
               >
-                {sessionState.upcomming === "Working" && (
+                {upcommingSession === "Working" && (
                   <span>Start Work Period</span>
                 )}
-                {sessionState.upcomming === "SmallBreak" && (
+                {upcommingSession === "SmallBreak" && (
                   <span>Time to strech your legs!</span>
                 )}
-                {sessionState.upcomming === "BigBreak" && (
+                {upcommingSession === "BigBreak" && (
                   <span>Start Big Pause Period</span>
                 )}
-                {sessionState.active === "Start" && (
-                  <span>Start Pomodoros</span>
-                )}
-                {sessionState.active === "Finish" && (
-                  <span>Restart Pomodoros</span>
-                )}
+                {activeSession === "Start" && <span>Start Pomodoros</span>}
+                {activeSession === "Finish" && <span>Restart Pomodoros</span>}
               </Button>
             </div>
           )}
-          {sessionState.active === "Working" && (
+          {activeSession === "Working" && (
             <div className="w-full h-full relative">
               <div className="w-full h-full bg-muted text-foreground rounded-xl flex items-center justify-between text-lg shadow relative z-20 font-medium px-4">
                 <span className="text-muted-foreground">

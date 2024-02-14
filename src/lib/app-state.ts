@@ -18,16 +18,15 @@ type SessionType =
   | "BigBreak"
   | "Finish"
   | "Start";
-type SessionState = {
-  previous: SessionType;
-  active: SessionType;
-  upcomming: SessionType;
-};
+
 type AddTaskPayload = Omit<Task, "id" | "completed">;
 type AppState = {
   tasks: Array<Task>;
   activeTask: string | null;
-  sessionState: SessionState;
+  activeSession: SessionType;
+  upcommingSession: SessionType;
+  isPaused: boolean;
+  pause: () => void;
   addTask: (taskPayload: AddTaskPayload) => void;
   removeTask: (taskId: string) => void;
   moveTask: (ids: [string, string]) => void;
@@ -85,10 +84,15 @@ const emitMutation = (mutation: MutationEvent) => {
   });
 };
 
-const useAppState = create<AppState>(() => ({
+const useAppState = create<AppState>((set) => ({
   tasks: [],
   activeTask: null,
-  sessionState: { previous: "Finish", active: "Idle", upcomming: "Working" },
+  activeSession: "Start",
+  upcommingSession: "Working",
+  isPaused: false,
+  pause: () => {
+    set((state) => ({ isPaused: !state.isPaused }));
+  },
   moveTask: (ids) => {
     emitMutation({ name: "SwapTasks", value: ids });
   },
