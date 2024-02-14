@@ -206,56 +206,56 @@ const TimerDisplay = ({ advance = true }: TimerDisplayProps) => {
     let start: number | undefined = undefined;
     let counter = 0;
     let animationId: number;
+    const timerDiv = timerRef.current;
+    if (!timerDiv) return;
+    timerDiv.style.transform = "translateX(0px)";
 
     const animationCallback = (timeStamp: number) => {
       if (start === undefined) {
         start = timeStamp;
       }
 
-      const timerDiv = timerRef.current;
-      if (timerDiv) {
-        const timeDiff = timeStamp - start;
-        let moveTargetPixels;
-        let moveTargetTime = 0;
-        switch (state.active) {
-          case "Finish":
-          case "Idle":
-            moveTargetPixels = 0;
-            break;
-          case "Working":
-            moveTargetPixels = 5 * timerSegmentWidth + 5 * gap;
-            moveTargetTime = 25 * 60 * 1000;
-            break;
-          case "SmallBreak":
-            moveTargetPixels = timerSegmentWidth + gap;
-            moveTargetTime = 5 * 60 * 1000;
-            break;
-          case "BigBreak":
-            moveTargetPixels = 3 * timerSegmentWidth + 2.5 * gap;
-            moveTargetTime = 15 * 60 * 1000;
-            break;
-          default:
-            moveTargetPixels = 3 * timerSegmentWidth + 2.5 * gap;
-            break;
-        }
+      const timeDiff = timeStamp - start;
+      let moveTargetPixels;
+      let moveTargetTime = 0;
+      switch (state.active) {
+        case "Finish":
+        case "Idle":
+          moveTargetPixels = 0;
+          break;
+        case "Working":
+          moveTargetPixels = 5 * timerSegmentWidth + 5 * gap;
+          moveTargetTime = 25 * 1000;
+          break;
+        case "SmallBreak":
+          moveTargetPixels = timerSegmentWidth + gap;
+          moveTargetTime = 5 * 1000;
+          break;
+        case "BigBreak":
+          moveTargetPixels = 3 * timerSegmentWidth + 2.5 * gap;
+          moveTargetTime = 15 * 1000;
+          break;
+        default:
+          moveTargetPixels = 3 * timerSegmentWidth + 2.5 * gap;
+          break;
+      }
 
-        counter += timeDiff;
-        const moved = timeDiff / moveTargetTime;
-        const pixelsToMove = moved * moveTargetPixels;
+      counter += timeDiff;
+      const moved = timeDiff / moveTargetTime;
+      const pixelsToMove = moved * moveTargetPixels;
 
-        timerDiv.style.transform = `translateX(-${pixelsToMove}px)`;
-        if (
-          state.active !== "Idle" &&
-          state.active !== "Start" &&
-          state.active !== "Finish"
-        ) {
-          if (moved < 1) {
-            animationId = requestAnimationFrame(animationCallback);
-          } else {
-            if (advance) {
-              audioRef.current?.play();
-              advanceState();
-            }
+      timerDiv.style.transform = `translateX(-${pixelsToMove}px)`;
+      if (
+        state.active !== "Idle" &&
+        state.active !== "Start" &&
+        state.active !== "Finish"
+      ) {
+        if (moved < 1) {
+          animationId = requestAnimationFrame(animationCallback);
+        } else {
+          if (advance) {
+            audioRef.current?.play();
+            advanceState();
           }
         }
       }
@@ -266,6 +266,8 @@ const TimerDisplay = ({ advance = true }: TimerDisplayProps) => {
       cancelAnimationFrame(animationId);
     };
   }, [state, advanceState]);
+
+  console.debug({ state });
 
   return (
     <div
