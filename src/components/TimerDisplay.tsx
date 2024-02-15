@@ -1,4 +1,8 @@
-import { getUpcommingDisplayState, useAppState } from "@/lib/app-state";
+import {
+  getUpcommingDisplayState,
+  SessionType,
+  useAppState,
+} from "@/lib/app-state";
 import { invoke } from "@tauri-apps/api";
 import { SunIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
@@ -193,32 +197,65 @@ type TimerDisplayProps = {
   advance?: boolean;
 };
 
+export type DisplayState = Extract<
+  SessionType,
+  "Working" | "SmallBreak" | "BigBreak"
+>;
+
+export const DisplayStates: Array<DisplayState> = [
+  "Working",
+  "SmallBreak",
+  "BigBreak",
+] as const;
+
 const TimerDisplay = ({ advance = true }: TimerDisplayProps) => {
   const timerRef = useRef<HTMLDivElement>(null);
   const activeSession = useAppState((state) => state.activeSession);
   const sessionHistory = useAppState((state) => state.sessionHistory);
+
+  const displaySessionHistory = sessionHistory.filter((session) =>
+    DisplayStates.includes(session.sessionType as DisplayState),
+  );
+  const activeDisplaySession = DisplayStates.includes(
+    activeSession.sessionType as DisplayState,
+  )
+    ? activeSession
+    : displaySessionHistory[displaySessionHistory.length - 1];
+
   const audioRef = useRef<HTMLAudioElement>(null);
   const translatePosition = useRef(0);
 
-  const previousState =
-    sessionHistory[sessionHistory.length - 1]?.sessionType || "Idle";
+  let previousState;
+  for (const session of displaySessionHistory) {
+    if (session.sessionType !== activeDisplaySession.sessionType) {
+      previousState = session.sessionType;
+      break;
+    }
+  }
 
-  const upcommingSession = useMemo(
-    () => getUpcommingDisplayState(activeSession.sessionType, sessionHistory),
-    [sessionHistory, activeSession],
+  const upcommingDisplaySession = useMemo(
+    () =>
+      getUpcommingDisplayState(
+        (activeDisplaySession?.sessionType || "Working") as DisplayState,
+        sessionHistory,
+      ),
+    [sessionHistory, activeDisplaySession],
   );
+
+  console.debug({
+    activeSession,
+    activeDisplaySession,
+    displaySessionHistory,
+    previousState,
+    upcommingDisplaySession,
+  });
 
   const advanceState = useCallback(() => {
     invoke("advance_state");
   }, []);
 
   useEffect(() => {
-    if (
-      activeSession.sessionType === "Idle" ||
-      activeSession.sessionType === "Start" ||
-      activeSession.sessionType === "Pause" ||
-      activeSession.sessionType === "Finish"
-    ) {
+    if (activeDisplaySession === undefined) {
       translatePosition.current = 0;
       return;
     }
@@ -231,7 +268,7 @@ const TimerDisplay = ({ advance = true }: TimerDisplayProps) => {
     let moveTargetPixels = 0;
     let moveTargetTime = 0;
 
-    switch (activeSession.sessionType) {
+    switch (activeDisplaySession.sessionType) {
       case "Working":
         moveTargetPixels = 5 * timerSegmentWidth + 5 * gap;
         moveTargetTime = 25 * 1000;
@@ -275,6 +312,7 @@ const TimerDisplay = ({ advance = true }: TimerDisplayProps) => {
         animationId = requestAnimationFrame(animationCallback);
       } else {
         if (advance) {
+          translatePosition.current = 0;
           audioRef.current?.play();
           advanceState();
         }
@@ -286,7 +324,7 @@ const TimerDisplay = ({ advance = true }: TimerDisplayProps) => {
     return () => {
       cancelAnimationFrame(animationId);
     };
-  }, [activeSession, advanceState]);
+  }, [activeDisplaySession, advanceState]);
 
   return (
     <div
@@ -314,9 +352,7 @@ const TimerDisplay = ({ advance = true }: TimerDisplayProps) => {
             gap: `${gap}px`,
           }}
         >
-          {(previousState === "Idle" ||
-            previousState === "Finish" ||
-            previousState === "Start") && <IdleTimeLine />}
+          {previousState === undefined && <IdleTimeLine />}
           {previousState === "SmallBreak" && <SmallBreakTimeLine />}
           {previousState === "BigBreak" && (
             <div
@@ -328,15 +364,6 @@ const TimerDisplay = ({ advance = true }: TimerDisplayProps) => {
                 <TimeLine />
               </div>
             </div>
-          )}
-          {previousState === "Pause" && (
-            <>
-              {activeSession.sessionType === "Working" && (
-                <SmallBreakTimeLine />
-              )}
-              {activeSession.sessionType === "SmallBreak" && <WorkTimeLine />}
-              {activeSession.sessionType === "BigBreak" && <WorkTimeLine />}
-            </>
           )}
           {previousState === "Working" && (
             <div
@@ -350,30 +377,19 @@ const TimerDisplay = ({ advance = true }: TimerDisplayProps) => {
             </div>
           )}
 
-          {activeSession.sessionType === "Start" && <IdleTimeLine />}
-          {activeSession.sessionType === "Idle" && (
-            <>
-              {upcommingSession === "Working" && <WorkTimeLine />}
-              {upcommingSession === "SmallBreak" && <SmallBreakTimeLine />}
-              {upcommingSession === "BigBreak" && <BigBreakTimeLine />}
-            </>
+          {activeDisplaySession === undefined && <IdleTimeLine />}
+          {activeDisplaySession.sessionType === "Working" && <WorkTimeLine />}
+          {activeDisplaySession.sessionType === "SmallBreak" && (
+            <SmallBreakTimeLine />
           )}
-          {activeSession.sessionType === "Pause" && (
-            <>
-              {previousState === "Working" && <WorkTimeLine />}
-              {previousState === "SmallBreak" && <SmallBreakTimeLine />}
-              {previousState === "BigBreak" && <BigBreakTimeLine />}
-            </>
+          {activeDisplaySession.sessionType === "BigBreak" && (
+            <BigBreakTimeLine />
           )}
-          {activeSession.sessionType === "Working" && <WorkTimeLine />}
-          {activeSession.sessionType === "SmallBreak" && <SmallBreakTimeLine />}
-          {activeSession.sessionType === "BigBreak" && <BigBreakTimeLine />}
 
-          {(activeSession.sessionType === "Idle" ||
-            activeSession.sessionType === "Start") && <IdleTimeLine />}
-          {upcommingSession === "Working" && <WorkTimeLine />}
-          {upcommingSession === "SmallBreak" && <SmallBreakTimeLine />}
-          {upcommingSession === "BigBreak" && <BigBreakTimeLine />}
+          {upcommingDisplaySession === undefined && <IdleTimeLine />}
+          {upcommingDisplaySession === "Working" && <WorkTimeLine />}
+          {upcommingDisplaySession === "SmallBreak" && <SmallBreakTimeLine />}
+          {upcommingDisplaySession === "BigBreak" && <BigBreakTimeLine />}
         </div>
       </div>
     </div>

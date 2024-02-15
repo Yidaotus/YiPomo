@@ -1,3 +1,4 @@
+import { DisplayState } from "@/components/TimerDisplay";
 import { invoke } from "@tauri-apps/api";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useState } from "react";
@@ -165,11 +166,9 @@ const useInitializeAppState = () => {
 };
 
 const getUpcommingDisplayState = (
-  active: SessionType,
+  active: DisplayState,
   history: Array<SessionState>,
-): SessionType => {
-  const previousState = history[history.length - 1]?.sessionType || "Start";
-
+): DisplayState => {
   let previousSmallPauses = 0;
   for (const state of history.slice().reverse()) {
     if (state.sessionType === "BigBreak") {
@@ -186,16 +185,6 @@ const getUpcommingDisplayState = (
         return "BigBreak";
       }
       return "SmallBreak";
-    }
-    case "Pause": {
-      return previousState;
-    }
-    case "Idle": {
-      if (previousState !== "Idle") {
-        return getUpcommingDisplayState(previousState, history);
-      } else {
-        return previousState;
-      }
     }
     default: {
       return "Working";
