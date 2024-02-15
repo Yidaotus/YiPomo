@@ -18,7 +18,8 @@ const Popup = () => {
 
   const pause = useAppState((state) => state.pause);
   const tasks = useAppState((state) => state.tasks);
-  const sessionState = useAppState(useShallow((state) => state.sessionState));
+  const activeSession = useAppState(useShallow((state) => state.activeSession));
+  const upcommingSession = useAppState(useShallow((state) => state.upcommingSession));
   const activeTaskId = useAppState((state) => state.activeTask);
   const activeTask = tasks.find((t) => t.id === activeTaskId);
 
@@ -50,7 +51,7 @@ const Popup = () => {
 
         <div className="h-[50px]">
           <div className="w-[295px] relative">
-            {["Idle", "Start", "Finish"].includes(sessionState.active) && (
+            {["Idle", "Start", "Finish"].includes(activeSession) && (
               <div className="h-[46px] w-full">
                 <div className="relative w-full group h-[40px]">
                   <div className="h-12 w-full absolute bottom-[-6px] left-0 bg-[#D9D9D9] group-hover:bg-[#D9D9D950] rounded-xl" />
@@ -59,53 +60,49 @@ const Popup = () => {
                     onClick={advanceState}
                     disabled={tasks.length < 1}
                   >
-                    {sessionState.upcomming === "Working" && (
+                    {upcommingSession === "Working" && (
                       <span>Start Work Period</span>
                     )}
-                    {sessionState.upcomming === "SmallBreak" && (
+                    {upcommingSession === "SmallBreak" && (
                       <span>Time to strech your legs!</span>
                     )}
-                    {sessionState.upcomming === "BigBreak" && (
+                    {upcommingSession === "BigBreak" && (
                       <span>Start Big Pause Period</span>
                     )}
-                    {sessionState.active === "Start" && (
-                      <span>Start Pomodoros</span>
-                    )}
-                    {sessionState.active === "Finish" && (
+                    {activeSession === "Start" && <span>Start Pomodoros</span>}
+                    {activeSession === "Finish" && (
                       <span>Restart Pomodoros</span>
                     )}
                   </Button>
                 </div>
               </div>
             )}
-            {["Working", "SmallBreak", "BigBreak"].includes(
-              sessionState.active,
-            ) && (
+            {["Working", "SmallBreak", "BigBreak"].includes(activeSession) && (
               <div className="h-[50px]">
                 <div className="w-full relative h-[40px]">
                   <div className="w-full h-full bg-muted text-foreground rounded-xl flex items-center justify-between shadow relative z-20 font-medium px-4">
                     <span className="text-muted-foreground">
-                      {sessionState.active === "Working" && (
+                      {activeSession === "Working" && (
                         <CheckCircle className="w-4 h-4" />
                       )}
-                      {sessionState.active === "SmallBreak" && (
+                      {activeSession === "SmallBreak" && (
                         <FootprintsIcon className="w-4 h-4" />
                       )}
-                      {sessionState.active === "BigBreak" && (
+                      {activeSession === "BigBreak" && (
                         <SunIcon className="w-4 h-4" />
                       )}
                     </span>
-                    {sessionState.active === "Working" && (
+                    {activeSession === "Working" && (
                       <span>{activeTask?.name}</span>
                     )}
-                    {sessionState.active === "SmallBreak" && (
+                    {activeSession === "SmallBreak" && (
                       <span>Small Break</span>
                     )}
-                    {sessionState.active === "BigBreak" && (
+                    {activeSession === "BigBreak" && (
                       <span>Big Break</span>
                     )}
 
-                    {sessionState.active === "Working" && (
+                    {activeSession === "Working" && (
                       <div className="text-sm relative text-muted-foreground">
                         <span className="relative left-[-1px] top-[-5px] inline-block">
                           {activeTask?.completed}
@@ -118,10 +115,10 @@ const Popup = () => {
                         </span>
                       </div>
                     )}
-                    {sessionState.active === "SmallBreak" && (
+                    {activeSession === "SmallBreak" && (
                       <FootprintsIcon className="w-4 h-4 text-muted-foreground" />
                     )}
-                    {sessionState.active === "BigBreak" && (
+                    {activeSession === "BigBreak" && (
                       <SunIcon className="w-4 h-4 text-muted-foreground" />
                     )}
                   </div>

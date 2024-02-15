@@ -21,7 +21,7 @@ struct Task {
 }
 
 type TaskItem = Arc<Mutex<Task>>;
-type TaskList = Mutex<Vec<TaskItem>>;
+type TaskList = Vec<TaskItem>;
 
 #[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq)]
 enum SessionType {
@@ -44,11 +44,13 @@ struct PopupState {
     popup: Mutex<Option<tauri::Window>>,
 }
 
+type TauriAppState = Mutex<AppState>;
+
 struct AppState {
     tasks: TaskList,
-    active_task: Mutex<Option<TaskItem>>,
-    session_history: Mutex<Vec<SessionState>>,
-    active_session: Mutex<SessionState>,
+    active_task: Option<TaskItem>,
+    session_history: Vec<SessionState>,
+    active_session: SessionState,
 }
 
 impl AppState {
@@ -108,10 +110,7 @@ impl AppState {
         new_active_state
     }
 
-    fn pause(&self) {
-        let mut active_session = self.active_session.lock().unwrap();
-        let mut session_history = self.session_history.lock().unwrap();
-
+    fn pause(&mut self) {
         let now = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap()
@@ -120,44 +119,39 @@ impl AppState {
             session_type: SessionType::Pause,
             start: now,
         };
-        *active_session = new_session;
-        session_history.push(new_session);
+        self.active_session = new_session;
+        self.session_history.push(new_session);
     }
 
     fn peek_next(&self) -> SessionType {
-        let tasks = self.tasks.lock().unwrap();
-        let active_session = self.active_session.lock().unwrap();
-        let session_history = self.session_history.lock().unwrap();
-
-        let mut pomodoros_left = tasks
+        let mut pomodoros_left = self
+            .tasks
             .iter()
             .filter(|t| t.lock().unwrap().done == false)
             .map(|t| {
-                let unf_t = t.lock().unwrap();
-                unf_t.length - unf_t.completed
+                let unlocked_task = t.lock().unwrap();
+                unlocked_task.length - unlocked_task.completed
             })
             .sum();
-        if active_session.session_type == SessionType::Working {
+        if self.active_session.session_type == SessionType::Working {
             pomodoros_left -= 1;
         }
 
         Self::calculate_next_state(
             pomodoros_left,
-            active_session.session_type,
-            &session_history,
+            self.active_session.session_type,
+            &self.session_history,
         )
     }
 
-    fn advance(&self) {
-        let tasks = self.tasks.lock().unwrap();
-        let mut active_task = self.active_task.lock().unwrap();
-        let mut active_session = self.active_session.lock().unwrap();
-        let mut session_history = self.session_history.lock().unwrap();
-
-        let mut unfinished_tasks = tasks.iter().filter(|t| t.lock().unwrap().done == false);
-        match active_session.session_type {
+    fn advance(&mut self) {
+        let mut unfinished_tasks = self
+            .tasks
+            .iter()
+            .filter(|t| t.lock().unwrap().done == false);
+        match self.active_session.session_type {
             SessionType::Working => {
-                if let Some(t) = active_task.as_ref() {
+                if let Some(t) = self.active_task.as_ref() {
                     let mut task = t.lock().unwrap();
 
                     task.completed += 1;
@@ -167,42 +161,43 @@ impl AppState {
                 }
 
                 if let Some(next_task) = unfinished_tasks.next() {
-                    *active_task = Some(next_task.clone());
+                    self.active_task = Some(next_task.clone());
                 } else {
-                    *active_task = None;
+                    self.active_task = None;
                 }
             }
             SessionType::Start => {
                 if let Some(next_task) = unfinished_tasks.next() {
-                    *active_task = Some(next_task.clone());
+                    self.active_task = Some(next_task.clone());
                 } else {
-                    *active_task = None;
+                    self.active_task = None;
                 }
             }
             _ => {}
         }
 
-        let pomodoros_left = tasks
+        let pomodoros_left = self
+            .tasks
             .iter()
             .filter(|t| t.lock().unwrap().done == false)
             .map(|t| {
-                let unf_t = t.lock().unwrap();
-                unf_t.length - unf_t.completed
+                let unlocked_task = t.lock().unwrap();
+                unlocked_task.length - unlocked_task.completed
             })
             .sum();
 
         let next_state = Self::calculate_next_state(
             pomodoros_left,
-            active_session.session_type,
-            &session_history,
+            self.active_session.session_type,
+            &self.session_history,
         );
 
         let now = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        session_history.push(*active_session);
-        *active_session = SessionState {
+        self.session_history.push(self.active_session);
+        self.active_session = SessionState {
             session_type: next_state,
             start: now,
         };
@@ -221,16 +216,19 @@ struct AppStateFrontend {
 }
 
 #[tauri::command]
-fn advance_state(state: State<AppState>, handle: AppHandle) {
+fn advance_state(tauri_app_state: State<TauriAppState>, handle: AppHandle) {
+    let mut state = tauri_app_state.lock().unwrap();
     state.advance();
-    let tasks = state.tasks.lock().unwrap();
-    let cloned = tasks.iter().map(|f| f.lock().unwrap().clone()).collect();
+    let cloned = state
+        .tasks
+        .iter()
+        .map(|f| f.lock().unwrap().clone())
+        .collect();
     handle
         .emit_all("synch_state", StateSynchEvent::Tasks(cloned))
         .unwrap();
 
-    let active_task = state.active_task.lock().unwrap();
-    if let Some(task) = active_task.as_ref() {
+    if let Some(task) = state.active_task.as_ref() {
         handle
             .emit_all(
                 "synch_state",
@@ -246,30 +244,33 @@ fn advance_state(state: State<AppState>, handle: AppHandle) {
     handle
         .emit_all(
             "synch_state",
-            StateSynchEvent::SessionState(state.active_session.lock().unwrap().clone()),
+            StateSynchEvent::UpcommingSession(state.peek_next()),
+        )
+        .unwrap();
+
+    handle
+        .emit_all(
+            "synch_state",
+            StateSynchEvent::ActiveSession(state.active_session.session_type),
         )
         .unwrap();
 }
 
 #[tauri::command]
-fn get_state(state: State<AppState>) -> AppStateFrontend {
-    let tasklist = state.tasks.lock().unwrap();
-    let tasks_fr: Vec<Task> = tasklist
+fn get_state(tauri_app_state: State<TauriAppState>) -> AppStateFrontend {
+    let state = tauri_app_state.lock().unwrap();
+    let tasks_fr: Vec<Task> = state
+        .tasks
         .iter()
-        .map(|f| f.as_ref().lock().unwrap().clone())
+        .map(|f| f.lock().unwrap().clone())
         .collect();
 
-    let active_task = state.active_task.lock().unwrap();
-    let active_task_fr = match active_task.as_ref() {
+    let active_task_fr = match state.active_task.as_ref() {
         Some(task) => Some(task.lock().unwrap().clone()),
         None => None,
     };
 
-    let state_lock = state.active_session.lock().unwrap();
-    let active_session = state_lock.session_type.clone();
-
-    drop(tasklist);
-    drop(state_lock);
+    let active_session = state.active_session.session_type.clone();
 
     AppStateFrontend {
         tasks: tasks_fr,
@@ -285,8 +286,10 @@ enum StateSynchEvent {
     Tasks(Vec<Task>),
     #[serde(rename = "activeTask")]
     ActiveTask(Option<String>),
-    #[serde(rename = "sessionState")]
-    SessionState(SessionState),
+    #[serde(rename = "activeSession")]
+    ActiveSession(SessionType),
+    #[serde(rename = "upcommingSession")]
+    UpcommingSession(SessionType),
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
@@ -327,67 +330,69 @@ impl Into<Task> for AddTaskPayload {
 #[tauri::command]
 fn mutate_state(
     value: StateMutateEvent,
-    state: State<'_, AppState>,
+    tauri_app_state: State<'_, TauriAppState>,
     handle: tauri::AppHandle,
 ) -> Result<(), ()> {
-    eprintln!("Got Command! {value:?}");
+    let mut state = tauri_app_state.lock().unwrap();
     match value {
         StateMutateEvent::AddTask(new_task) => {
-            let mut tasks = state.tasks.lock().unwrap();
-            tasks.push(Arc::new(Mutex::new(new_task.into())));
+            state.tasks.push(Arc::new(Mutex::new(new_task.into())));
         }
         StateMutateEvent::SwapTasks((i, y)) => {
-            let mut tasks = state.tasks.lock().unwrap();
-            let id1 = tasks
+            let id1 = state
+                .tasks
                 .iter()
                 .position(|t| t.lock().unwrap().id == i)
                 .unwrap();
-            let id2 = tasks
+            let id2 = state
+                .tasks
                 .iter()
                 .position(|t| t.lock().unwrap().id == y)
                 .unwrap();
-            tasks.swap(id1, id2);
+            state.tasks.swap(id1, id2);
         }
         StateMutateEvent::RemoveTask(task_id) => {
-            let mut tasks = state.tasks.lock().unwrap();
-            *tasks = tasks
+            state.tasks = state
+                .tasks
                 .iter()
                 .filter(|task| task.lock().unwrap().id != task_id)
                 .cloned()
                 .collect();
         }
         StateMutateEvent::CheckTask(TaskCheckStatePayload { task_id, checked }) => {
-            let target_task_id;
-            let mut tasks = state.tasks.lock().unwrap();
             {
-                let mut target_task = tasks
+                let target_task = state
+                    .tasks
                     .iter()
                     .find(|t| t.lock().unwrap().id == task_id)
-                    .unwrap()
-                    .lock()
                     .unwrap();
-                target_task.done = checked;
+
+                let mut tar = target_task.lock().unwrap();
+                tar.done = checked;
                 if checked {
-                    target_task.completed = target_task.length;
+                    tar.completed = tar.length;
                 } else {
-                    target_task.completed = 0;
+                    tar.completed = 0;
                 }
-                target_task_id = target_task.id.clone();
             }
 
             if !checked {
-                let task_index = tasks
+                let task_index = state
+                    .tasks
                     .iter()
-                    .position(|t| t.lock().unwrap().id == target_task_id);
+                    .position(|t| t.lock().unwrap().id == task_id);
                 if let Some(index) = task_index {
-                    let len = tasks.len() - 1;
-                    tasks.swap(index, len);
+                    let len = state.tasks.len() - 1;
+                    state.tasks.swap(index, len);
                 }
             }
         }
     }
-    let tasks = state.tasks.lock().unwrap();
-    let cloned = tasks.iter().map(|f| f.lock().unwrap().clone()).collect();
+    let cloned = state
+        .tasks
+        .iter()
+        .map(|f| f.lock().unwrap().clone())
+        .collect();
     handle
         .emit_all("synch_state", StateSynchEvent::Tasks(cloned))
         .unwrap();
@@ -426,22 +431,22 @@ fn main() {
         .unwrap()
         .as_secs();
     let app_state = AppState {
-        tasks: Mutex::new(Vec::new()),
-        active_task: Mutex::new(None),
-        session_history: Mutex::new(vec![SessionState {
+        tasks: Vec::new(),
+        active_task: None,
+        session_history: vec![SessionState {
             session_type: SessionType::Start,
             start: now,
-        }]),
-        active_session: Mutex::new(SessionState {
+        }],
+        active_session: SessionState {
             session_type: SessionType::Start,
             start: now,
-        }),
+        },
     };
     let popup_state = PopupState {
         popup: Mutex::new(None),
     };
     tauri::Builder::default()
-        .manage(app_state)
+        .manage(Mutex::new(app_state))
         .manage(popup_state)
         .invoke_handler(tauri::generate_handler![
             toggle_popup,
