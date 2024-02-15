@@ -36,7 +36,8 @@ enum SessionType {
 
 #[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq)]
 struct SessionState {
-    start: u64,
+    start: u128,
+    #[serde(rename = "sessionType")]
     session_type: SessionType,
 }
 
@@ -110,17 +111,24 @@ impl AppState {
         new_active_state
     }
 
-    fn pause(&mut self) {
+    fn toggle_pause(&mut self) {
+        let new_session_type;
+        if self.active_session.session_type == SessionType::Pause {
+            new_session_type = self.session_history.iter().last().unwrap().session_type;
+        } else {
+            new_session_type = SessionType::Pause;
+        }
+
         let now = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap()
-            .as_secs();
+            .as_millis();
         let new_session = SessionState {
-            session_type: SessionType::Pause,
+            session_type: new_session_type,
             start: now,
         };
+        self.session_history.push(self.active_session);
         self.active_session = new_session;
-        self.session_history.push(new_session);
     }
 
     fn peek_next(&self) -> SessionType {
@@ -195,7 +203,7 @@ impl AppState {
         let now = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap()
-            .as_secs();
+            .as_millis();
         self.session_history.push(self.active_session);
         self.active_session = SessionState {
             session_type: next_state,
@@ -210,14 +218,15 @@ struct AppStateFrontend {
     #[serde(rename = "activeTask")]
     active_task: Option<Task>,
     #[serde(rename = "activeSession")]
-    active_session: SessionType,
+    active_session: SessionState,
     #[serde(rename = "upcommingSession")]
-    upcomming_session: SessionType,
+    session_history: Vec<SessionState>,
 }
 
 #[tauri::command]
 fn advance_state(tauri_app_state: State<TauriAppState>, handle: AppHandle) {
     let mut state = tauri_app_state.lock().unwrap();
+    let previous_state = state.active_session.session_type;
     state.advance();
     let cloned = state
         .tasks
@@ -228,32 +237,39 @@ fn advance_state(tauri_app_state: State<TauriAppState>, handle: AppHandle) {
         .emit_all("synch_state", StateSynchEvent::Tasks(cloned))
         .unwrap();
 
+    let synch_active_state;
     if let Some(task) = state.active_task.as_ref() {
-        handle
-            .emit_all(
-                "synch_state",
-                StateSynchEvent::ActiveTask(Some(task.lock().unwrap().id.clone())),
-            )
-            .unwrap();
+        synch_active_state = Some(task.lock().unwrap().id.clone());
     } else {
-        handle
-            .emit_all("synch_state", StateSynchEvent::ActiveTask(None))
-            .unwrap();
+        synch_active_state = None;
     }
-
+    eprintln!(
+        "Previous: {:?}, Current: {:?}, Upcomming: {:?}",
+        previous_state,
+        state.active_session.session_type,
+        state.peek_next()
+    );
     handle
         .emit_all(
             "synch_state",
-            StateSynchEvent::UpcommingSession(state.peek_next()),
+            StateSynchEvent::ActiveTask(synch_active_state),
         )
         .unwrap();
 
     handle
         .emit_all(
             "synch_state",
-            StateSynchEvent::ActiveSession(state.active_session.session_type),
+            StateSynchEvent::ActiveSession(state.active_session),
         )
         .unwrap();
+
+    handle
+        .emit_all(
+            "synch_state",
+            StateSynchEvent::SessionHistory(state.session_history.clone()),
+        )
+        .unwrap();
+
 }
 
 #[tauri::command]
@@ -270,13 +286,13 @@ fn get_state(tauri_app_state: State<TauriAppState>) -> AppStateFrontend {
         None => None,
     };
 
-    let active_session = state.active_session.session_type.clone();
+    let active_session = state.active_session;
 
     AppStateFrontend {
         tasks: tasks_fr,
         active_task: active_task_fr,
         active_session,
-        upcomming_session: state.peek_next(),
+        session_history: state.session_history.clone(),
     }
 }
 
@@ -287,9 +303,9 @@ enum StateSynchEvent {
     #[serde(rename = "activeTask")]
     ActiveTask(Option<String>),
     #[serde(rename = "activeSession")]
-    ActiveSession(SessionType),
-    #[serde(rename = "upcommingSession")]
-    UpcommingSession(SessionType),
+    ActiveSession(SessionState),
+    #[serde(rename = "sessionHistory")]
+    SessionHistory(Vec<SessionState>),
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
@@ -425,11 +441,52 @@ async fn toggle_popup(handle: tauri::AppHandle, state: State<'_, PopupState>) ->
     Ok(())
 }
 
+#[tauri::command]
+fn toggle_pause(handle: tauri::AppHandle, tauri_app_state: State<TauriAppState>) -> Result<(), ()> {
+    let mut state = tauri_app_state.lock().unwrap();
+    let previous_state = state.active_session.session_type;
+    state.toggle_pause();
+
+    let synch_active_state;
+    if let Some(task) = state.active_task.as_ref() {
+        synch_active_state = Some(task.lock().unwrap().id.clone());
+    } else {
+        synch_active_state = None;
+    }
+    eprintln!(
+        "Previous: {:?}, Current: {:?}, Upcomming: {:?}",
+        previous_state,
+        state.active_session.session_type,
+        state.peek_next()
+    );
+    handle
+        .emit_all(
+            "synch_state",
+            StateSynchEvent::ActiveTask(synch_active_state),
+        )
+        .unwrap();
+
+    handle
+        .emit_all(
+            "synch_state",
+            StateSynchEvent::SessionHistory(state.session_history.clone()),
+        )
+        .unwrap();
+
+    handle
+        .emit_all(
+            "synch_state",
+            StateSynchEvent::ActiveSession(state.active_session),
+        )
+        .unwrap();
+    Ok(())
+}
+
 fn main() {
     let now = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .unwrap()
-        .as_secs();
+        .as_millis();
     let app_state = AppState {
         tasks: Vec::new(),
         active_task: None,
@@ -451,6 +508,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             toggle_popup,
             get_state,
+            toggle_pause,
             mutate_state,
             advance_state
         ])

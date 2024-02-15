@@ -10,22 +10,26 @@ export type Task = {
   name: string;
   done: boolean;
 };
+type AddTaskPayload = Omit<Task, "id" | "completed">;
 
-type SessionType =
+export type SessionType =
+  | "Start"
   | "Idle"
+  | "Pause"
   | "Working"
   | "SmallBreak"
   | "BigBreak"
-  | "Finish"
-  | "Start";
+  | "Finish";
 
-type AddTaskPayload = Omit<Task, "id" | "completed">;
+export type SessionState = {
+  sessionType: SessionType;
+  start: number;
+};
 type AppState = {
   tasks: Array<Task>;
   activeTask: string | null;
-  activeSession: SessionType;
-  upcommingSession: SessionType;
-  isPaused: boolean;
+  sessionHistory: Array<SessionState>;
+  activeSession: SessionState;
   pause: () => void;
   addTask: (taskPayload: AddTaskPayload) => void;
   removeTask: (taskId: string) => void;
@@ -70,6 +74,7 @@ const StateEvent = {
   mutate: "mutate_state",
   synch: "synch_state",
   getState: "get_state",
+  togglePause: "toggle_pause",
 } as const;
 
 type SynchEventPayload = {
@@ -84,14 +89,13 @@ const emitMutation = (mutation: MutationEvent) => {
   });
 };
 
-const useAppState = create<AppState>((set) => ({
+const useAppState = create<AppState>(() => ({
   tasks: [],
   activeTask: null,
-  activeSession: "Start",
-  upcommingSession: "Working",
-  isPaused: false,
+  activeSession: { sessionType: "Start", start: Date.now() },
+  sessionHistory: [],
   pause: () => {
-    set((state) => ({ isPaused: !state.isPaused }));
+    invoke(StateEvent.togglePause);
   },
   moveTask: (ids) => {
     emitMutation({ name: "SwapTasks", value: ids });
@@ -160,7 +164,47 @@ const useInitializeAppState = () => {
   return { isSynching };
 };
 
+const getUpcommingDisplayState = (
+  active: SessionType,
+  history: Array<SessionState>,
+): SessionType => {
+  const previousState = history[history.length - 1]?.sessionType || "Start";
+
+  let previousSmallPauses = 0;
+  for (const state of history.slice().reverse()) {
+    if (state.sessionType === "BigBreak") {
+      break;
+    }
+    if (state.sessionType === "SmallBreak") {
+      previousSmallPauses += 1;
+    }
+  }
+
+  switch (active) {
+    case "Working": {
+      if (previousSmallPauses >= 3) {
+        return "BigBreak";
+      }
+      return "SmallBreak";
+    }
+    case "Pause": {
+      return previousState;
+    }
+    case "Idle": {
+      if (previousState !== "Idle") {
+        return getUpcommingDisplayState(previousState, history);
+      } else {
+        return previousState;
+      }
+    }
+    default: {
+      return "Working";
+    }
+  }
+};
+
 export {
+  getUpcommingDisplayState,
   subscribeAppState,
   useAppState,
   useInitializeAppState,

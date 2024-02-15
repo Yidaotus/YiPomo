@@ -8,8 +8,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { invoke } from "@tauri-apps/api/tauri";
-import { CheckCircle, PictureInPicture2Icon, PlusCircle } from "lucide-react";
+import { PlusCircle } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import TaskView from "./components/Task";
 import { Button } from "./components/ui/button";
@@ -20,22 +19,16 @@ import {
   useAppState,
   useSynchAppState,
 } from "./lib/app-state";
-import TimerDisplay from "./components/TimerDisplay";
-import { useShallow } from "zustand/react/shallow";
+import SessionState from "./components/SessionState";
 
 function App() {
   const tasks = useAppState((state) => state.tasks);
-  const [popupVisible, setPopupVisible] = useState(false);
   const [finishTimeValues, setFinishTimeValues] = useState({
     sessionHours: 0,
     sessionMinutes: 0,
     finish: new Date(),
   });
 
-  const activeSession = useAppState(useShallow((state) => state.activeSession));
-  const upcommingSession = useAppState(
-    useShallow((state) => state.upcommingSession),
-  );
   const stateAddTask = useAppState((state) => state.addTask);
   const stateMoveTask = useAppState((state) => state.moveTask);
   const activeTaskId = useAppState((state) => state.activeTask);
@@ -45,20 +38,9 @@ function App() {
   const [taskNameInput, setTaskNameInput] = useState("");
   const [taskDurationInput, setTaskDurationInput] = useState(1);
 
-  const activeTask = tasks.find((t) => t.id === activeTaskId);
-
-  const advanceState = useCallback(() => {
-    invoke("advance_state");
-  }, []);
-
   const delTask = useCallback((taskId: string) => {
     removeTask(taskId);
   }, []);
-
-  const togglePopup = async () => {
-    await invoke("toggle_popup", {});
-    setPopupVisible((visible) => !visible);
-  };
 
   useEffect(() => {
     const unsub = subscribeAppState();
@@ -126,63 +108,7 @@ function App() {
 
   return (
     <div className="h-screen flex flex-col px-4 pb-4 bg-background">
-      <div className="absolute top-4 right-12 w-4 h-4">
-        <Button
-          variant="ghost"
-          className="text-foreground"
-          onClick={togglePopup}
-        >
-          <PictureInPicture2Icon className="w-4 h-5" />
-        </Button>
-      </div>
-      <div className="w-full flex flex-col gap-4 justify-center items-center pt-12 pb-10">
-        <TimerDisplay advance={!popupVisible} />
-        <div className="h-12 w-[300px] relative">
-          {["Idle", "Start", "Finish"].includes(activeSession) && (
-            <div className="relative w-full h-full group">
-              <div className="h-12 w-full absolute bottom-[-6px] left-0 bg-[#D9D9D9] group-hover:bg-[#D9D9D950] rounded-xl" />
-              <Button
-                className="relative w-full h-full text-base font-medium bg-muted text-foreground group-hover:bg-muted/80"
-                onClick={advanceState}
-                disabled={tasks.length < 1}
-              >
-                {upcommingSession === "Working" && (
-                  <span>Start Work Period</span>
-                )}
-                {upcommingSession === "SmallBreak" && (
-                  <span>Time to strech your legs!</span>
-                )}
-                {upcommingSession === "BigBreak" && (
-                  <span>Start Big Pause Period</span>
-                )}
-                {activeSession === "Start" && <span>Start Pomodoros</span>}
-                {activeSession === "Finish" && <span>Restart Pomodoros</span>}
-              </Button>
-            </div>
-          )}
-          {activeSession === "Working" && (
-            <div className="w-full h-full relative">
-              <div className="w-full h-full bg-muted text-foreground rounded-xl flex items-center justify-between text-lg shadow relative z-20 font-medium px-4">
-                <span className="text-muted-foreground">
-                  <CheckCircle className="w-4 h-4" />
-                </span>
-                <span>{activeTask?.name}</span>
-
-                <div className="text-sm relative text-muted-foreground">
-                  <span className="relative left-[-1px] top-[-5px] inline-block">
-                    {activeTask?.completed}
-                  </span>
-                  <span className="relative inline-block rotate-12">/</span>
-                  <span className="relative left-[1px] top-[5px] inline-block">
-                    {activeTask?.length}
-                  </span>
-                </div>
-              </div>
-              <div className="h-full w-[95%] absolute bottom-[-8px] left-1/2 -translate-x-1/2 bg-[#D9D9D9] rounded-2xl shadow z-10" />
-            </div>
-          )}
-        </div>
-      </div>
+      <SessionState />
       <div className="flex flex-col pb-4 flex-1 h-full overflow-auto">
         <h2 className="text-2xl font-bold pb-2">Tasks</h2>
         <div className="border-t border-muted h-1 w-[80%] pb-2 self-center" />
