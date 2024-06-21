@@ -108,7 +108,9 @@ function App() {
 
   return (
     <div className="h-screen flex flex-col px-4 pb-4 bg-background">
-      <SessionState />
+      <div className="py-6">
+        <SessionState />
+      </div>
       <div className="flex flex-col pb-4 flex-1 h-full overflow-auto">
         <h2 className="text-2xl font-bold pb-2">Tasks</h2>
         <div className="border-t border-muted h-1 w-[80%] pb-2 self-center" />

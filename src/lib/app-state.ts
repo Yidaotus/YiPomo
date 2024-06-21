@@ -1,4 +1,3 @@
-import { DisplayState } from "@/components/TimerDisplay";
 import { invoke } from "@tauri-apps/api";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useState } from "react";
@@ -42,6 +41,11 @@ type AppState = {
     taskId: string;
     checked: boolean;
   }) => void;
+  displayState: {
+    history: Array<SessionState>;
+    active: SessionState;
+    upcomming: SessionType;
+  };
 };
 
 type MoveTaskMutation = {
@@ -90,7 +94,7 @@ const emitMutation = (mutation: MutationEvent) => {
   });
 };
 
-const useAppState = create<AppState>(() => ({
+const useAppState = create<AppState>((_, get) => ({
   tasks: [],
   activeTask: null,
   activeSession: { sessionType: "Start", start: Date.now() },
@@ -112,6 +116,23 @@ const useAppState = create<AppState>(() => ({
   },
   advance: () => {
     invoke(StateEvent.advanceState);
+  },
+  displayState: {
+    get history() {
+      return get().sessionHistory.filter((session) =>
+        DisplayStates.includes(session.sessionType)
+      );
+    },
+    get active() {
+      const activeSession = get().activeSession;
+      const activeDisplay = DisplayStates.includes(activeSession.sessionType)
+        ? activeSession
+        : this.history[this.history.length - 1];
+      return activeDisplay || { sessionType: "Start", start: 0 };
+    },
+    get upcomming() {
+      return getUpcommingDisplayState(this.active.sessionType, this.history);
+    },
   },
 }));
 
@@ -141,7 +162,7 @@ const subscribeAppState = async () => {
           [key]: value,
         });
       }
-    },
+    }
   );
 
   return () => {
@@ -166,8 +187,8 @@ const useInitializeAppState = () => {
 };
 
 const getUpcommingDisplayState = (
-  active: DisplayState,
-  history: Array<SessionState>,
+  active: SessionType,
+  history: Array<SessionState>
 ): DisplayState => {
   let previousSmallPauses = 0;
   for (const state of history.slice().reverse()) {
@@ -191,6 +212,17 @@ const getUpcommingDisplayState = (
     }
   }
 };
+
+export type DisplayState = Extract<
+  SessionType,
+  "Working" | "SmallBreak" | "BigBreak"
+>;
+
+export const DisplayStates: Array<SessionType> = [
+  "Working",
+  "SmallBreak",
+  "BigBreak",
+];
 
 export {
   getUpcommingDisplayState,
